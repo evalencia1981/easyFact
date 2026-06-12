@@ -1,0 +1,13 @@
+# Credenciales
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Runtime / local
+*.log
+*.tmp
+.claude/
