@@ -21,7 +21,8 @@ import secrets
 import sys
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Security, UploadFile
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
 # Permitir importar `intake` y `presets` desde la raíz del repo.
@@ -42,7 +43,10 @@ app = FastAPI(title="ContaScan Intake", version="0.1.0")
 # --------------------------------------------------------------------------- #
 # Auth interna: todo endpoint de captura exige X-Intake-Key == INTAKE_SERVICE_KEY
 # --------------------------------------------------------------------------- #
-def require_intake_key(x_intake_key: Optional[str] = Header(default=None)) -> None:
+_intake_key_header = APIKeyHeader(name="X-Intake-Key", auto_error=False)
+
+
+def require_intake_key(x_intake_key: Optional[str] = Security(_intake_key_header)) -> None:
     expected = os.getenv("INTAKE_SERVICE_KEY")
     if not expected:
         raise HTTPException(503, "INTAKE_SERVICE_KEY no configurada en el servicio.")
