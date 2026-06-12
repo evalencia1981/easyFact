@@ -17,9 +17,13 @@ nunca llama a este servicio directamente.
 | Fase | Entregable | Estado |
 |---|---|---|
 | **I0** | Núcleo copiado + `/health` responde | ✅ |
-| **I1** | `presets/factura_dian.py` (`FACTURA_DIAN_SCHEMA`, `extraer_factura`, `conversar_factura`) | ⏳ |
+| **I1** | Preset **flexible** `presets/factura.py` (`FACTURA_SCHEMA`, `extraer_factura`, `conversar_factura`) | ✅ |
 | **I2** | `POST /extraer`, `POST /chat` + auth `X-Intake-Key` | ⏳ |
 | **I3** | Deploy en Railway/Render/Fly + URL pública | ⏳ |
+
+> **Nota de diseño:** se omitió el esquema DIAN rígido (CUFE/DV/UBL). Los insumos reales son
+> apuntes/notas que se leen, así que el preset usa un **esquema laxo** con casi todo opcional;
+> lo único obligatorio es `texto_crudo` (transcripción literal), que siempre se puede producir.
 
 ## Correr en local
 ```bash
