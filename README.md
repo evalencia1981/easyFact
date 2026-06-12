@@ -18,7 +18,7 @@ nunca llama a este servicio directamente.
 |---|---|---|
 | **I0** | Núcleo copiado + `/health` responde | ✅ |
 | **I1** | Preset **flexible** `presets/factura.py` (`FACTURA_SCHEMA`, `extraer_factura`, `conversar_factura`) | ✅ |
-| **I2** | `POST /extraer`, `POST /chat` + auth `X-Intake-Key` | ⏳ |
+| **I2** | `POST /extraer`, `POST /chat` + auth `X-Intake-Key` | ✅ |
 | **I3** | Deploy en Railway/Render/Fly + URL pública | ⏳ |
 
 > **Nota de diseño:** se omitió el esquema DIAN rígido (CUFE/DV/UBL). Los insumos reales son
