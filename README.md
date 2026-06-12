@@ -19,7 +19,7 @@ nunca llama a este servicio directamente.
 | **I0** | Núcleo copiado + `/health` responde | ✅ |
 | **I1** | Preset **flexible** `presets/factura.py` (`FACTURA_SCHEMA`, `extraer_factura`, `conversar_factura`) | ✅ |
 | **I2** | `POST /extraer`, `POST /chat` + auth `X-Intake-Key` | ✅ |
-| **I3** | Deploy en Railway/Render/Fly + URL pública | ⏳ |
+| **I3** | Deploy en **Render** + URL pública (`render.yaml`) | ⏳ |
 
 > **Nota de diseño:** se omitió el esquema DIAN rígido (CUFE/DV/UBL). Los insumos reales son
 > apuntes/notas que se leen, así que el preset usa un **esquema laxo** con casi todo opcional;
@@ -33,10 +33,24 @@ python -m uvicorn backend.app:app --reload --port 8000
 # http://127.0.0.1:8000/health
 ```
 
+## Deploy en Render (fase I3)
+El repo trae `render.yaml` (Blueprint). Pasos:
+
+1. Sube el repo a **GitHub** (`git remote add origin … && git push -u origin master`).
+2. En Render: **New + → Blueprint** → conecta el repo → **Apply**. Detecta `render.yaml`.
+3. En el servicio recién creado → **Environment**, pega los valores reales de
+   `GEMINI_API_KEY` e `INTAKE_SERVICE_KEY` (marcadas `sync:false`, no van en el repo).
+4. Espera el build. Verifica `https://<tu-servicio>.onrender.com/health`.
+
+> Plan **free**: el servicio se duerme tras ~15 min sin tráfico; el primer request
+> tras dormir tarda unos segundos. La app ContaScan debe enviar `X-Intake-Key` en
+> cada llamada a `/extraer` y `/chat`.
+
 ## Estructura
 ```
 intake/        núcleo reutilizable (NO modificar): gemini, extractor, chat, schema
 presets/       presets del dominio (factura DIAN) — fase I1
-backend/app.py FastAPI (health; endpoints en I2)
+backend/app.py FastAPI (health + /extraer + /chat + auth X-Intake-Key)
 api/index.py   entrypoint ASGI (compatibilidad con el patrón original)
+render.yaml    blueprint de deploy en Render — fase I3
 ```

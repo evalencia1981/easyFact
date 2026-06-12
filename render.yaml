@@ -1,0 +1,24 @@
+# render.yaml — Blueprint de deploy para Render (FASE I3).
+#
+# Crea un Web Service Python que sirve la app FastAPI. Render inyecta $PORT;
+# uvicorn debe escuchar 0.0.0.0:$PORT. Las dos keys se cargan a mano en el
+# dashboard (sync:false => NO se versionan aqui), nunca en el repo.
+#
+# Deploy: New + > Blueprint > conecta este repo de GitHub > Apply.
+services:
+  - type: web
+    name: contascan-intake
+    runtime: python
+    plan: free                      # se duerme tras ~15 min inactivo (1er request lento)
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: GEMINI_API_KEY         # pegar valor real en el dashboard
+        sync: false
+      - key: INTAKE_SERVICE_KEY     # secreto que la app ContaScan enviara en X-Intake-Key
+        sync: false
