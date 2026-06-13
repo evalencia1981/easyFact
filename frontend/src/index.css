@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #0c0814;
+  background-image:
+    radial-gradient(1100px 620px at 82% -12%, rgba(169, 116, 245, 0.16), transparent 60%),
+    radial-gradient(820px 520px at -12% 8%, rgba(131, 72, 214, 0.14), transparent 55%),
+    radial-gradient(900px 560px at 50% 118%, rgba(196, 65, 154, 0.12), transparent 55%);
+  background-attachment: fixed;
+  color: #e9e1f7;
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grano sutil para dar textura al fondo plano */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.font-display {
+  font-family: "Fraunces", serif;
+  font-optical-sizing: auto;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2c1f44;
+  border-radius: 999px;
+  border: 2px solid #0c0814;
+}
+::selection {
+  background: rgba(169, 116, 245, 0.32);
+  color: #f6f2fc;
+}

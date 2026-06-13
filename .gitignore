@@ -7,6 +7,11 @@ __pycache__/
 .venv/
 venv/
 
+# Node / frontend
+node_modules/
+frontend/dist/
+.vercel/
+
 # Runtime / local
 *.log
 *.tmp

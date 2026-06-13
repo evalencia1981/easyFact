@@ -1,16 +1,19 @@
 """
-backend/app.py — Servicio de captura de ContaScan (contascan-intake).
+backend/app.py — API FastAPI de ContaScan (MVP con frontend).
 
-Microservicio STATELESS (sin base de datos): expone el motor reutilizable `intake`
-(Gemini) por HTTP para extraer datos de facturas/apuntes desde foto o chat. La app SaaS
-ContaScan lo consume server-side (el navegador nunca lo llama directo) enviando el header
-X-Intake-Key.
+Sigue la arquitectura base Loggro/Reparte: frontend (React/Vite) y backend
+(FastAPI vía api/index.py) se despliegan JUNTOS en Vercel. El navegador llama a
+`/api/*` del MISMO origen, así que los endpoints de IA solo requieren GEMINI_API_KEY
+(no hay X-Intake-Key en el camino del navegador).
 
-Fases (detenerse al final de cada una):
-  I0 — núcleo `intake` copiado tal cual + /health.                                  ✅
-  I1 — preset FLEXIBLE de factura/apunte (presets/factura.py).                       ✅
-  I2 (ACTUAL) — endpoints /extraer y /chat + auth por header X-Intake-Key.
-  I3 — deploy en Railway/Render/Fly.
+> Nota: la captura headless server-to-server (cuando otra app consuma este servicio)
+> puede protegerse con `X-Intake-Key` reintroduciendo `require_intake_key` como
+> dependencia. Para el MVP same-origin se deja desactivado.
+
+Endpoints (IA, solo requieren GEMINI_API_KEY):
+  GET  /api/health
+  POST /api/extraer   (foto -> {data, confidence})
+  POST /api/chat      (voz/texto con estado -> {data, respuesta})
 
 Correr local:  uvicorn backend.app:app --reload --port 8000   (desde la raíz)
 """
@@ -21,7 +24,8 @@ import secrets
 import sys
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, Security, UploadFile
+from fastapi import FastAPI, File, HTTPException, Security, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
@@ -37,11 +41,22 @@ except ImportError:
 from intake import media_type_from_name, model_name  # noqa: E402
 import presets  # noqa: E402
 
-app = FastAPI(title="ContaScan Intake", version="0.1.0")
+app = FastAPI(title="ContaScan Intake", version="0.2.0")
+
+# El frontend en dev corre en Vite (5173) y proxya /api al backend (8000); en
+# producción (Vercel) frontend y API comparten origen y este CORS es inocuo.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # --------------------------------------------------------------------------- #
-# Auth interna: todo endpoint de captura exige X-Intake-Key == INTAKE_SERVICE_KEY
+# Auth opcional (server-to-server). NO se usa en el MVP same-origin; se deja
+# lista para proteger la captura headless cuando otra app consuma el servicio:
+# añade `dependencies=[Depends(require_intake_key)]` al endpoint que la requiera.
 # --------------------------------------------------------------------------- #
 _intake_key_header = APIKeyHeader(name="X-Intake-Key", auto_error=False)
 
@@ -69,23 +84,22 @@ class ChatReq(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# Endpoints
+# Endpoints de IA (solo requieren GEMINI_API_KEY)
 # --------------------------------------------------------------------------- #
-@app.get("/health")
+@app.get("/api/health")
 def health():
-    """Liveness del servicio. Público (sin auth)."""
+    """Liveness del servicio."""
     return {
         "ok": True,
         "service": "contascan-intake",
         "model": model_name(),
         "gemini_key": bool(os.getenv("GEMINI_API_KEY")),
-        "intake_key_set": bool(os.getenv("INTAKE_SERVICE_KEY")),
     }
 
 
-@app.post("/extraer", dependencies=[Depends(require_intake_key)])
+@app.post("/api/extraer")
 async def extraer(file: UploadFile = File(...)):
-    """Foto de una factura/apunte -> {data, confidence}. Requiere X-Intake-Key."""
+    """Foto de una factura/apunte -> {data, confidence}."""
     if not os.getenv("GEMINI_API_KEY"):
         raise HTTPException(400, "Falta GEMINI_API_KEY en el servicio.")
     data = await file.read()
@@ -99,9 +113,9 @@ async def extraer(file: UploadFile = File(...)):
     return {"data": doc, "confidence": doc.get("confianza", 0)}
 
 
-@app.post("/chat", dependencies=[Depends(require_intake_key)])
+@app.post("/api/chat")
 def chat(req: ChatReq):
-    """Turno de chat (voz/texto) -> {data, respuesta}. Requiere X-Intake-Key."""
+    """Turno de chat (voz/texto) -> {data, respuesta}."""
     if not (req.mensaje or "").strip():
         raise HTTPException(400, "Mensaje vacío.")
     if not os.getenv("GEMINI_API_KEY"):
