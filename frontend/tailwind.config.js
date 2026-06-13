@@ -4,33 +4,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Superficies — ciruela nocturna profunda
+        // Superficies — pino/esmeralda nocturno profundo (tokens heredados: plum.*)
         plum: {
-          950: "#0c0814",
-          900: "#130d20",
-          850: "#181023",
-          800: "#1f1530",
-          700: "#2c1f44",
-          600: "#3d2c5c",
+          950: "#07120d",
+          900: "#0a1810",
+          850: "#0c1c13",
+          800: "#102417",
+          700: "#163420",
+          600: "#21492f",
         },
-        // Texto y neutros — bruma lavanda
+        // Texto y neutros — bruma salvia (tokens heredados: haze.*)
         haze: {
-          50: "#f6f2fc",
-          100: "#e9e1f7",
-          200: "#dcd0f0",
-          300: "#cabbe6",
-          400: "#a394c4",
-          500: "#7c6aa0",
+          50: "#f1faf5",
+          100: "#ddf3e8",
+          200: "#cdecdd",
+          300: "#b6e3cd",
+          400: "#8cc4a8",
+          500: "#62a07f",
         },
-        // Acento — amatista / iris
+        // Acento — esmeralda / jade (tokens heredados: iris.*)
         iris: {
-          DEFAULT: "#a974f5",
-          bright: "#c9a3ff",
-          deep: "#8348d6",
+          DEFAULT: "#3ddc97",
+          bright: "#74f0bd",
+          deep: "#16a36b",
         },
-        matched: "#4fd6a0",
+        matched: "#34e0c0",
         pending: "#f2719b",
-        orchid: "#c4419a",
+        orchid: "#1fb8a6",
       },
       fontFamily: {
         display: ['"Fraunces"', "serif"],
@@ -38,7 +38,7 @@ export default {
         mono: ['"JetBrains Mono"', "monospace"],
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(169,116,245,0.28), 0 18px 50px -12px rgba(169,116,245,0.28)",
+        glow: "0 0 0 1px rgba(61,220,151,0.28), 0 18px 50px -12px rgba(61,220,151,0.28)",
         panel: "0 24px 60px -24px rgba(0,0,0,0.85)",
       },
       keyframes: {
