@@ -176,6 +176,14 @@ function FacturaEditor({
         <Campo label="Concepto">
           <input className={inputCls} value={datos.concepto || ""} onChange={(e) => set("concepto", e.target.value)} />
         </Campo>
+        <Campo label="Placa (vehículo)">
+          <input
+            className={`${inputCls} font-mono uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal`}
+            placeholder="opcional · ej. NUU699"
+            value={datos.placa || ""}
+            onChange={(e) => set("placa", e.target.value.toUpperCase())}
+          />
+        </Campo>
       </div>
 
       {/* Ítems */}

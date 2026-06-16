@@ -33,6 +33,8 @@ FACTURA_SCHEMA = {
         "numero": {"type": "string"},        # número de factura/recibo, si aparece
         "fecha": {"type": "string"},         # fecha tal como se vea (texto libre)
         "concepto": {"type": "string"},      # descripción general del movimiento
+        "placa": {"type": "string"},         # placa del vehículo, si aparece (parqueaderos, peajes,
+                                             # combustible, mantenimiento...). Opcional pero relevante.
 
         # Detalle opcional. Cada línea con sus propios campos opcionales.
         "items": {
@@ -75,6 +77,8 @@ esquema JSON lo que REALMENTE se ve. Reglas:
   agrega `cantidad`, `valor_unitario` o `total_linea` si se ven.
 - `tipo`: "venta" si es un cobro a un cliente, "compra" si es un gasto/pago a un proveedor;
   "" si no se puede determinar.
+- `placa`: si aparece una placa de vehículo (común en parqueaderos, peajes, combustible,
+  mantenimiento, lavado), transcríbela tal cual (ej. "NUU699", "ABC123"). Si no aparece, "".
 - `total`: el valor total a cobrar/pagar si está visible o es sumable con confianza.
 - `moneda`: "COP" por defecto en Colombia salvo que se indique otra.
 - `confianza`: número 0..1 con tu autoevaluación de qué tan legible y completo quedó
@@ -93,6 +97,7 @@ Reglas:
 - `monto`/importes: interpreta "doscientos mil" = 200000, "200k" = 200000. Si falta el total o el
   tercero, pídelo en la `respuesta`.
 - `tipo`: "venta" si es un cobro a un cliente; "compra" si es un pago a un proveedor.
+- `placa`: si el usuario menciona una placa de vehículo, regístrala (ej. "NUU699"); si no, "".
 - `moneda`: "COP" por defecto. No inventes datos; si algo no se dijo, déjalo vacío/0.
 - `confianza`: tu autoevaluación 0..1 de qué tan completo está el registro.
 Devuelve solo el JSON del esquema (data = registro + respuesta)."""
@@ -101,8 +106,8 @@ Devuelve solo el JSON del esquema (data = registro + respuesta)."""
 def _vacio() -> dict:
     return {
         "tipo": "", "tercero": "", "documento": "", "numero": "", "fecha": "",
-        "concepto": "", "items": [], "subtotal": 0, "impuestos": 0, "total": 0,
-        "moneda": "COP", "texto_crudo": "", "notas": "", "confianza": 0,
+        "concepto": "", "placa": "", "items": [], "subtotal": 0, "impuestos": 0,
+        "total": 0, "moneda": "COP", "texto_crudo": "", "notas": "", "confianza": 0,
     }
 
 
