@@ -20,7 +20,7 @@ export interface Factura {
   numero?: string;
   fecha?: string;
   concepto?: string;
-  placa?: string; // placa del vehículo (opcional; común en parqueaderos, peajes, combustible…)
+  centro_costos?: string; // dimensión contable opcional: placa de vehículo, proyecto, obra, sede…
   items?: FacturaItem[];
   subtotal?: number;
   impuestos?: number;
