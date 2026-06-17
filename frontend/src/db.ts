@@ -16,6 +16,15 @@ export interface Centro {
   alias: string;
 }
 
+export interface ClienteAdmin {
+  id: string;
+  nombre: string;
+  nit: string;
+  propietario_id: string | null;
+  propietario_nombre: string | null;
+  propietario_email: string | null;
+}
+
 export interface Manifiesto {
   id: string;
   cliente_id: string;
@@ -99,6 +108,27 @@ export async function createCliente(nombre: string, nit = ""): Promise<Cliente> 
 
 export async function deleteCliente(id: string): Promise<void> {
   const { error } = await supabase.from("cliente").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Clientes con datos del dueño (para la página de gestión del contador).
+export async function listClientesAdmin(): Promise<ClienteAdmin[]> {
+  const { data, error } = await supabase.rpc("mis_clientes");
+  if (error) throw error;
+  return (data ?? []) as ClienteAdmin[];
+}
+
+// Busca un dueño registrado por correo (rol propietario). null si no existe.
+export async function buscarPropietario(email: string): Promise<{ id: string; nombre: string } | null> {
+  const { data, error } = await supabase.rpc("buscar_propietario", { p_email: email });
+  if (error) throw error;
+  const arr = (data ?? []) as { id: string; nombre: string }[];
+  return arr[0] ?? null;
+}
+
+// Vincula (o desvincula con null) el dueño de un cliente.
+export async function vincularPropietario(clienteId: string, propietarioId: string | null): Promise<void> {
+  const { error } = await supabase.from("cliente").update({ propietario_id: propietarioId }).eq("id", clienteId);
   if (error) throw error;
 }
 

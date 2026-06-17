@@ -1,28 +1,33 @@
 import { useEffect, useState } from "react";
 import {
-  listClientes,
+  listClientesAdmin,
   createCliente,
   deleteCliente,
   listCentros,
   createCentro,
   deleteCentro,
-  type Cliente,
+  buscarPropietario,
+  vincularPropietario,
+  type ClienteAdmin,
   type Centro,
 } from "../db";
+import { useAuth } from "../auth";
 
 const inputCls =
   "w-full rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition placeholder:text-haze-500/70 focus:border-iris focus:shadow-glow";
 
-// Gestión de clientes (flotas) y sus camiones (centros de costo).
+// Gestión de clientes (flotas), sus camiones y su dueño vinculado.
 export default function Clientes() {
-  const [clientes, setClientes] = useState<Cliente[] | null>(null);
+  const { profile } = useAuth();
+  const esContador = (profile?.role ?? "contador") === "contador";
+  const [clientes, setClientes] = useState<ClienteAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nombre, setNombre] = useState("");
   const [nit, setNit] = useState("");
   const [expandido, setExpandido] = useState<string | null>(null);
 
   const cargar = () =>
-    listClientes()
+    listClientesAdmin()
       .then(setClientes)
       .catch((e) => setError(e.message));
 
@@ -34,11 +39,10 @@ export default function Clientes() {
     if (!nombre.trim()) return;
     setError(null);
     try {
-      const c = await createCliente(nombre.trim(), nit.trim());
-      setClientes((xs) => [...(xs ?? []), c]);
+      await createCliente(nombre.trim(), nit.trim());
       setNombre("");
       setNit("");
-      setExpandido(c.id);
+      await cargar();
     } catch (e: any) {
       setError(e.message);
     }
@@ -59,8 +63,7 @@ export default function Clientes() {
     <div className="mx-auto min-h-full w-full max-w-3xl px-4 py-8 sm:py-12">
       <h1 className="font-display text-2xl font-semibold text-haze-50">Clientes y camiones</h1>
       <p className="mt-1 text-sm text-haze-400">
-        Da de alta tus clientes (flotas) y los camiones de cada uno. Luego, al capturar una factura,
-        solo los seleccionas.
+        Da de alta tus clientes (flotas), sus camiones y el dueño de cada flota.
       </p>
 
       {/* Alta de cliente */}
@@ -103,9 +106,11 @@ export default function Clientes() {
             <ClienteCard
               key={c.id}
               cliente={c}
+              esContador={esContador}
               expanded={expandido === c.id}
               onToggle={() => setExpandido((id) => (id === c.id ? null : c.id))}
               onDelete={() => borrar(c.id)}
+              onChanged={cargar}
             />
           ))}
         </ul>
@@ -115,23 +120,32 @@ export default function Clientes() {
 }
 
 // --------------------------------------------------------------------------- //
-// Tarjeta de cliente con sus camiones (carga al expandir)
+// Tarjeta de cliente: dueño vinculado + camiones (carga al expandir)
 // --------------------------------------------------------------------------- //
 function ClienteCard({
   cliente,
+  esContador,
   expanded,
   onToggle,
   onDelete,
+  onChanged,
 }: {
-  cliente: Cliente;
+  cliente: ClienteAdmin;
+  esContador: boolean;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onChanged: () => void;
 }) {
   const [centros, setCentros] = useState<Centro[] | null>(null);
   const [placa, setPlaca] = useState("");
   const [alias, setAlias] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Vincular dueño
+  const [emailDueno, setEmailDueno] = useState("");
+  const [duenoMsg, setDuenoMsg] = useState<string | null>(null);
+  const [vinculando, setVinculando] = useState(false);
 
   useEffect(() => {
     if (expanded && centros === null) {
@@ -164,6 +178,35 @@ function ClienteCard({
     }
   };
 
+  const vincular = async () => {
+    if (!emailDueno.trim()) return;
+    setVinculando(true);
+    setDuenoMsg(null);
+    try {
+      const dueno = await buscarPropietario(emailDueno);
+      if (!dueno) {
+        setDuenoMsg("Ese correo no está registrado como Dueño. Pídele que cree su cuenta (rol Dueño) y vuelve a vincular.");
+        return;
+      }
+      await vincularPropietario(cliente.id, dueno.id);
+      setEmailDueno("");
+      onChanged();
+    } catch (e: any) {
+      setDuenoMsg(e.message);
+    } finally {
+      setVinculando(false);
+    }
+  };
+
+  const desvincular = async () => {
+    try {
+      await vincularPropietario(cliente.id, null);
+      onChanged();
+    } catch (e: any) {
+      setDuenoMsg(e.message);
+    }
+  };
+
   return (
     <li className="rounded-xl border border-plum-700 bg-plum-900/50 shadow-panel">
       <div className="flex items-center justify-between gap-3 p-4">
@@ -179,7 +222,10 @@ function ClienteCard({
           </svg>
           <span className="min-w-0">
             <span className="block truncate font-medium text-haze-50">{cliente.nombre}</span>
-            {cliente.nit && <span className="block text-xs text-haze-500">NIT {cliente.nit}</span>}
+            <span className="block text-xs text-haze-500">
+              {cliente.nit ? `NIT ${cliente.nit}` : "sin NIT"}
+              {cliente.propietario_nombre ? ` · Dueño: ${cliente.propietario_nombre}` : " · sin dueño"}
+            </span>
           </span>
         </button>
         <button onClick={onDelete} className="shrink-0 text-xs text-haze-500 transition hover:text-pending">
@@ -188,50 +234,89 @@ function ClienteCard({
       </div>
 
       {expanded && (
-        <div className="border-t border-plum-700 p-4">
-          <span className="text-xs font-semibold uppercase tracking-wide text-haze-500">Camiones</span>
-
-          {centros === null ? (
-            <p className="mt-2 text-xs text-haze-500">Cargando…</p>
-          ) : centros.length === 0 ? (
-            <p className="mt-2 text-xs text-haze-500">Sin camiones todavía.</p>
-          ) : (
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {centros.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex items-center justify-between rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-2"
-                >
-                  <span className="text-sm text-haze-100">
-                    <span className="font-mono">{c.identificador || "(sin placa)"}</span>
-                    {c.alias && <span className="text-haze-400"> · {c.alias}</span>}
+        <div className="space-y-4 border-t border-plum-700 p-4">
+          {/* Dueño (solo el contador asigna) */}
+          {esContador && (
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wide text-haze-500">Dueño de la flota</span>
+              {cliente.propietario_id ? (
+                <div className="mt-2 flex items-center justify-between rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-2">
+                  <span className="min-w-0 text-sm text-haze-100">
+                    {cliente.propietario_nombre || "Dueño"}
+                    {cliente.propietario_email && <span className="text-haze-500"> · {cliente.propietario_email}</span>}
                   </span>
-                  <button onClick={() => borrar(c.id)} className="text-xs text-haze-500 transition hover:text-pending">
-                    ✕
+                  <button onClick={desvincular} className="shrink-0 text-xs text-haze-500 transition hover:text-pending">
+                    quitar
                   </button>
-                </li>
-              ))}
-            </ul>
+                </div>
+              ) : (
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    className={inputCls}
+                    type="email"
+                    placeholder="correo del dueño (ya registrado)"
+                    value={emailDueno}
+                    onChange={(e) => setEmailDueno(e.target.value)}
+                  />
+                  <button
+                    onClick={vincular}
+                    disabled={vinculando}
+                    className="shrink-0 rounded-lg bg-iris px-4 py-2 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright disabled:opacity-60"
+                  >
+                    {vinculando ? "…" : "Vincular"}
+                  </button>
+                </div>
+              )}
+              {duenoMsg && <p className="mt-2 text-xs text-pending">{duenoMsg}</p>}
+            </div>
           )}
 
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-            <label className="flex flex-1 flex-col gap-1">
-              <span className="text-xs font-medium text-haze-500">Placa</span>
-              <input className={inputCls} placeholder="ej. NUU699" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
-            </label>
-            <label className="flex flex-1 flex-col gap-1">
-              <span className="text-xs font-medium text-haze-500">Alias (opcional)</span>
-              <input className={inputCls} placeholder="ej. Tractomula 1" value={alias} onChange={(e) => setAlias(e.target.value)} />
-            </label>
-            <button
-              onClick={agregar}
-              className="rounded-xl bg-iris px-4 py-2.5 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright"
-            >
-              Agregar camión
-            </button>
+          {/* Camiones */}
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-haze-500">Camiones</span>
+
+            {centros === null ? (
+              <p className="mt-2 text-xs text-haze-500">Cargando…</p>
+            ) : centros.length === 0 ? (
+              <p className="mt-2 text-xs text-haze-500">Sin camiones todavía.</p>
+            ) : (
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {centros.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex items-center justify-between rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-2"
+                  >
+                    <span className="text-sm text-haze-100">
+                      <span className="font-mono">{c.identificador || "(sin placa)"}</span>
+                      {c.alias && <span className="text-haze-400"> · {c.alias}</span>}
+                    </span>
+                    <button onClick={() => borrar(c.id)} className="text-xs text-haze-500 transition hover:text-pending">
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+              <label className="flex flex-1 flex-col gap-1">
+                <span className="text-xs font-medium text-haze-500">Placa</span>
+                <input className={inputCls} placeholder="ej. NUU699" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+              </label>
+              <label className="flex flex-1 flex-col gap-1">
+                <span className="text-xs font-medium text-haze-500">Alias (opcional)</span>
+                <input className={inputCls} placeholder="ej. Tractomula 1" value={alias} onChange={(e) => setAlias(e.target.value)} />
+              </label>
+              <button
+                onClick={agregar}
+                className="rounded-xl bg-iris px-4 py-2.5 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright"
+              >
+                Agregar camión
+              </button>
+            </div>
           </div>
 
-          {error && <p className="mt-2 text-xs text-pending">{error}</p>}
+          {error && <p className="text-xs text-pending">{error}</p>}
         </div>
       )}
     </li>
