@@ -2,13 +2,17 @@ import { useEffect, useState, type ReactNode } from "react";
 import ImagenUpload from "./components/ImagenUpload";
 import ChatCaptura from "./components/ChatCaptura";
 import Login from "./components/Login";
+import Facturas from "./components/Facturas";
+import GuardarFactura from "./components/GuardarFactura";
 import { useAuth, ROLE_LABEL } from "./auth";
 import { api, pesos, type Factura, type FacturaItem } from "./api";
 
 type Modo = "foto" | "voz";
+type Tab = "capturar" | "facturas";
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth();
+  const [tab, setTab] = useState<Tab>("capturar");
 
   if (loading) {
     return (
@@ -22,10 +26,25 @@ export default function App() {
   return (
     <div>
       <nav className="sticky top-0 z-10 border-b border-plum-700 bg-plum-950/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-2.5">
-          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-iris">ContaScan</span>
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-2.5">
+          <span className="hidden text-xs font-semibold uppercase tracking-[0.25em] text-iris sm:inline">
+            ContaScan
+          </span>
+          <div className="inline-flex rounded-xl border border-plum-600 bg-plum-950/60 p-0.5">
+            {(["capturar", "facturas"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`rounded-lg px-4 py-1 text-sm font-medium transition ${
+                  tab === t ? "bg-iris text-plum-950" : "text-haze-400 hover:text-iris"
+                }`}
+              >
+                {t === "capturar" ? "Capturar" : "Facturas"}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-haze-300">
+            <span className="hidden text-haze-300 sm:inline">
               {profile?.nombre || session.user.email}
               {profile && (
                 <span className="ml-2 rounded-full bg-iris/15 px-2 py-0.5 text-[11px] text-iris">
@@ -39,12 +58,12 @@ export default function App() {
           </div>
         </div>
       </nav>
-      <Captura />
+      {tab === "capturar" ? <Captura onVerFacturas={() => setTab("facturas")} /> : <Facturas />}
     </div>
   );
 }
 
-function Captura() {
+function Captura({ onVerFacturas }: { onVerFacturas: () => void }) {
   const [modo, setModo] = useState<Modo>("foto");
   const [datos, setDatos] = useState<Factura | null>(null);
   const [confirmado, setConfirmado] = useState<Factura | null>(null);
@@ -134,7 +153,9 @@ function Captura() {
         </section>
       )}
 
-      {confirmado && <Confirmacion factura={confirmado} onNuevo={reiniciar} />}
+      {confirmado && (
+        <Confirmacion factura={confirmado} onNuevo={reiniciar} onVerFacturas={onVerFacturas} />
+      )}
     </div>
   );
 }
@@ -342,34 +363,46 @@ function FacturaEditor({
 // --------------------------------------------------------------------------- //
 // Confirmación: muestra el registro final + JSON (copiar / descargar)
 // --------------------------------------------------------------------------- //
-function Confirmacion({ factura, onNuevo }: { factura: Factura; onNuevo: () => void }) {
-  const [copiado, setCopiado] = useState(false);
+function Confirmacion({
+  factura,
+  onNuevo,
+  onVerFacturas,
+}: {
+  factura: Factura;
+  onNuevo: () => void;
+  onVerFacturas: () => void;
+}) {
+  const [guardada, setGuardada] = useState(false);
   const jsonStr = JSON.stringify(factura, null, 2);
 
-  const copiar = async () => {
-    try {
-      await navigator.clipboard.writeText(jsonStr);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 1500);
-    } catch {
-      /* noop */
-    }
-  };
-
-  const descargar = () => {
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `factura-${factura.numero || "registro"}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  if (guardada) {
+    return (
+      <section className="mt-8 animate-rise rounded-2xl border border-matched/40 bg-plum-900/50 p-6 text-center shadow-panel">
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-matched/15 text-matched">
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        </span>
+        <h2 className="font-display mt-3 text-lg font-semibold text-haze-50">¡Factura guardada!</h2>
+        <p className="mt-1 text-sm text-haze-400">
+          {factura.tercero || "Sin tercero"} · {pesos(factura.total || 0, factura.moneda)}
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <button onClick={onVerFacturas} className="rounded-xl bg-iris px-5 py-2 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright">
+            Ver mis facturas
+          </button>
+          <button onClick={onNuevo} className="rounded-xl border border-plum-600 bg-plum-950/60 px-5 py-2 text-sm text-haze-200 transition hover:border-iris hover:text-iris">
+            Capturar otra
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="mt-8 animate-rise rounded-2xl border border-matched/30 bg-plum-900/50 p-6 shadow-panel">
+    <section className="mt-8 animate-rise rounded-2xl border border-iris/30 bg-plum-900/50 p-6 shadow-panel">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-matched/15 text-matched">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-iris/15 text-iris">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2">
             <path d="M20 6 9 17l-5-5" />
           </svg>
@@ -382,19 +415,17 @@ function Confirmacion({ factura, onNuevo }: { factura: Factura; onNuevo: () => v
         </div>
       </div>
 
-      <pre className="mt-4 max-h-72 overflow-auto rounded-xl border border-plum-700 bg-plum-950/60 p-3 font-mono text-xs text-haze-200">
-        {jsonStr}
-      </pre>
+      {/* Asignar a cliente/centro y guardar en Supabase */}
+      <GuardarFactura factura={factura} onSaved={() => setGuardada(true)} />
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button onClick={copiar} className="rounded-xl border border-plum-600 bg-plum-950/60 px-4 py-2 text-sm text-haze-200 transition hover:border-iris hover:text-iris">
-          {copiado ? "¡Copiado!" : "Copiar JSON"}
-        </button>
-        <button onClick={descargar} className="rounded-xl border border-plum-600 bg-plum-950/60 px-4 py-2 text-sm text-haze-200 transition hover:border-iris hover:text-iris">
-          Descargar JSON
-        </button>
-        <button onClick={onNuevo} className="rounded-xl bg-iris px-5 py-2 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright">
-          Capturar otra
+      <details className="mt-4 rounded-lg border border-plum-700 bg-plum-950/40">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-haze-400">Ver JSON</summary>
+        <pre className="max-h-72 overflow-auto p-3 font-mono text-xs text-haze-200">{jsonStr}</pre>
+      </details>
+
+      <div className="mt-4">
+        <button onClick={onNuevo} className="text-sm text-haze-400 transition hover:text-iris hover:underline">
+          Descartar y capturar otra
         </button>
       </div>
     </section>
