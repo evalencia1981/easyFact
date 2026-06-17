@@ -5,6 +5,7 @@
 -- Seguridad: Supabase Auth + RLS. El backend FastAPI NO toca la DB; el
 -- frontend lee/escribe vía supabase-js con la sesión del usuario.
 -- Aplicar en: Supabase Studio -> SQL Editor -> pegar y Run.
+-- Idempotente: se puede re-ejecutar completo sin romper datos.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -113,16 +114,46 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
 
--- ---------------------------------------------------------------------
--- Helper: rol del usuario actual (security definer => evita recursión RLS)
--- ---------------------------------------------------------------------
-create or replace function auth_role()
-returns user_role language sql stable security definer set search_path = public as $$
-  select role from public.profiles where id = auth.uid()
+-- =====================================================================
+-- Helpers SECURITY DEFINER — encapsulan los chequeos cruzados de acceso.
+-- Al ser definer, sus consultas internas BYPASEAN RLS => cortan la
+-- recursión mutua entre políticas de cliente/centro_costos/factura.
+-- =====================================================================
+-- Clientes donde el usuario es contador o propietario.
+create or replace function my_cliente_ids()
+returns setof uuid language sql stable security definer set search_path = public as $$
+  select id from public.cliente
+  where contador_id = auth.uid() or propietario_id = auth.uid()
+$$;
+
+-- Centros de los clientes que administro (contador/propietario).
+create or replace function my_centro_ids()
+returns setof uuid language sql stable security definer set search_path = public as $$
+  select cc.id from public.centro_costos cc
+  where cc.cliente_id in (
+    select id from public.cliente
+    where contador_id = auth.uid() or propietario_id = auth.uid()
+  )
+$$;
+
+-- Centros que tengo asignados como conductor.
+create or replace function my_conductor_centro_ids()
+returns setof uuid language sql stable security definer set search_path = public as $$
+  select centro_costos_id from public.conductor_centro where conductor_id = auth.uid()
+$$;
+
+-- Clientes de los centros que tengo asignados como conductor.
+create or replace function my_conductor_cliente_ids()
+returns setof uuid language sql stable security definer set search_path = public as $$
+  select distinct cc.cliente_id
+  from public.centro_costos cc
+  join public.conductor_centro k on k.centro_costos_id = cc.id
+  where k.conductor_id = auth.uid()
 $$;
 
 -- =====================================================================
--- Row Level Security
+-- Row Level Security (políticas no recursivas: solo columnas propias +
+-- las funciones definer de arriba)
 -- =====================================================================
 alter table profiles         enable row level security;
 alter table cliente          enable row level security;
@@ -131,15 +162,12 @@ alter table conductor_centro enable row level security;
 alter table factura          enable row level security;
 
 -- ---- profiles -------------------------------------------------------
--- Cada quien ve/edita su propio profile. (El contador verá nombres de
--- sus dueños/conductores vía joins en las vistas de reporte.)
 drop policy if exists profiles_self_select on profiles;
 create policy profiles_self_select on profiles for select using (id = auth.uid());
 drop policy if exists profiles_self_update on profiles;
 create policy profiles_self_update on profiles for update using (id = auth.uid());
 
 -- ---- cliente --------------------------------------------------------
--- Contador: dueño de sus clientes (full). Propietario: ve su cliente.
 drop policy if exists cliente_contador_all on cliente;
 create policy cliente_contador_all on cliente for all
   using (contador_id = auth.uid())
@@ -149,101 +177,51 @@ drop policy if exists cliente_propietario_select on cliente;
 create policy cliente_propietario_select on cliente for select
   using (propietario_id = auth.uid());
 
--- Conductor: ve los clientes de los centros que tiene asignados.
 drop policy if exists cliente_conductor_select on cliente;
 create policy cliente_conductor_select on cliente for select
-  using (exists (
-    select 1 from conductor_centro cc
-    join centro_costos cc2 on cc2.id = cc.centro_costos_id
-    where cc.conductor_id = auth.uid() and cc2.cliente_id = cliente.id
-  ));
+  using (id in (select my_conductor_cliente_ids()));
 
 -- ---- centro_costos --------------------------------------------------
--- Contador y propietario: full sobre los centros de sus clientes.
 drop policy if exists centro_owner_all on centro_costos;
 create policy centro_owner_all on centro_costos for all
-  using (exists (
-    select 1 from cliente c where c.id = centro_costos.cliente_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  ))
-  with check (exists (
-    select 1 from cliente c where c.id = centro_costos.cliente_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  ));
+  using (cliente_id in (select my_cliente_ids()))
+  with check (cliente_id in (select my_cliente_ids()));
 
--- Conductor: ve los centros que tiene asignados.
 drop policy if exists centro_conductor_select on centro_costos;
 create policy centro_conductor_select on centro_costos for select
-  using (exists (
-    select 1 from conductor_centro cc
-    where cc.centro_costos_id = centro_costos.id and cc.conductor_id = auth.uid()
-  ));
+  using (id in (select my_conductor_centro_ids()));
 
 -- ---- conductor_centro ----------------------------------------------
--- Contador/propietario gestionan asignaciones de sus centros.
 drop policy if exists asignacion_owner_all on conductor_centro;
 create policy asignacion_owner_all on conductor_centro for all
-  using (exists (
-    select 1 from centro_costos cc
-    join cliente c on c.id = cc.cliente_id
-    where cc.id = conductor_centro.centro_costos_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  ))
-  with check (exists (
-    select 1 from centro_costos cc
-    join cliente c on c.id = cc.cliente_id
-    where cc.id = conductor_centro.centro_costos_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  ));
+  using (centro_costos_id in (select my_centro_ids()))
+  with check (centro_costos_id in (select my_centro_ids()));
 
--- Conductor: ve sus propias asignaciones.
 drop policy if exists asignacion_conductor_select on conductor_centro;
 create policy asignacion_conductor_select on conductor_centro for select
   using (conductor_id = auth.uid());
 
 -- ---- factura --------------------------------------------------------
--- Ver: contador/propietario del cliente, o conductor del centro.
 drop policy if exists factura_select on factura;
 create policy factura_select on factura for select using (
-  exists (
-    select 1 from cliente c where c.id = factura.cliente_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  )
-  or exists (
-    select 1 from conductor_centro cc
-    where cc.centro_costos_id = factura.centro_costos_id and cc.conductor_id = auth.uid()
-  )
+  cliente_id in (select my_cliente_ids())
+  or centro_costos_id in (select my_conductor_centro_ids())
 );
 
--- Crear: contador/propietario del cliente, o conductor asignado al centro.
 drop policy if exists factura_insert on factura;
 create policy factura_insert on factura for insert with check (
-  exists (
-    select 1 from cliente c where c.id = factura.cliente_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  )
-  or exists (
-    select 1 from conductor_centro cc
-    where cc.centro_costos_id = factura.centro_costos_id and cc.conductor_id = auth.uid()
-  )
+  cliente_id in (select my_cliente_ids())
+  or centro_costos_id in (select my_conductor_centro_ids())
 );
 
--- Editar/borrar: contador/propietario del cliente, o el conductor que la capturó.
 drop policy if exists factura_update on factura;
 create policy factura_update on factura for update using (
-  capturada_por = auth.uid()
-  or exists (
-    select 1 from cliente c where c.id = factura.cliente_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  )
+  capturada_por = auth.uid() or cliente_id in (select my_cliente_ids())
 );
+
 drop policy if exists factura_delete on factura;
 create policy factura_delete on factura for delete using (
-  capturada_por = auth.uid()
-  or exists (
-    select 1 from cliente c where c.id = factura.cliente_id
-      and (c.contador_id = auth.uid() or c.propietario_id = auth.uid())
-  )
+  capturada_por = auth.uid() or cliente_id in (select my_cliente_ids())
 );
 
 -- =====================================================================
