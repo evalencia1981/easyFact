@@ -52,6 +52,24 @@ export default function Facturas() {
   const total = filtradas.reduce((s, f) => s + (f.total || 0), 0);
   const monedaResumen = filtradas[0]?.moneda || "COP";
 
+  // Desglose por cliente (solo cuando se ven todos los clientes).
+  const porCliente = useMemo(() => {
+    if (clienteFiltro) return [];
+    const map = new Map<string, { id: string; nombre: string; total: number; count: number }>();
+    for (const f of filtradas) {
+      const cur = map.get(f.cliente_id) ?? {
+        id: f.cliente_id,
+        nombre: f.cliente?.nombre || "—",
+        total: 0,
+        count: 0,
+      };
+      cur.total += f.total || 0;
+      cur.count += 1;
+      map.set(f.cliente_id, cur);
+    }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [filtradas, clienteFiltro]);
+
   return (
     <div className="mx-auto min-h-full w-full max-w-3xl px-4 py-8 sm:py-12">
       <h1 className="font-display text-2xl font-semibold text-haze-50">Facturas guardadas</h1>
@@ -99,13 +117,31 @@ export default function Facturas() {
         </div>
       )}
 
-      {/* Total acumulado del filtro */}
+      {/* Total: "contabilidad" (todos) o de un cliente; con desglose por cliente */}
       {rows && rows.length > 0 && (
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-iris/30 bg-iris/5 px-4 py-2.5 text-sm">
-          <span className="text-haze-300">
-            {filtradas.length} {filtradas.length === 1 ? "factura" : "facturas"}
-          </span>
-          <span className="font-semibold text-iris">{pesos(total, monedaResumen)}</span>
+        <div className="mt-3 rounded-xl border border-iris/30 bg-iris/5 px-4 py-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-haze-200">
+              {clienteFiltro ? "Total cliente" : "Total contabilidad"}
+              <span className="ml-2 text-xs text-haze-500">
+                {filtradas.length} {filtradas.length === 1 ? "factura" : "facturas"}
+              </span>
+            </span>
+            <span className="text-base font-semibold text-iris">{pesos(total, monedaResumen)}</span>
+          </div>
+
+          {!clienteFiltro && porCliente.length > 0 && (
+            <ul className="mt-2.5 flex flex-col gap-1 border-t border-iris/15 pt-2.5">
+              {porCliente.map((c) => (
+                <li key={c.id} className="flex items-center justify-between text-xs">
+                  <span className="truncate text-haze-400">
+                    {c.nombre} <span className="text-haze-600">· {c.count}</span>
+                  </span>
+                  <span className="shrink-0 font-medium text-haze-200">{pesos(c.total, monedaResumen)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
