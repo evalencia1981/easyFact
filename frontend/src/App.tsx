@@ -4,12 +4,13 @@ import ChatCaptura from "./components/ChatCaptura";
 import Login from "./components/Login";
 import Facturas from "./components/Facturas";
 import Clientes from "./components/Clientes";
+import Viajes from "./components/Viajes";
 import GuardarFactura from "./components/GuardarFactura";
 import { useAuth, ROLE_LABEL } from "./auth";
 import { api, pesos, type Factura, type FacturaItem } from "./api";
 
 type Modo = "foto" | "voz";
-type Tab = "capturar" | "facturas" | "clientes";
+type Tab = "capturar" | "facturas" | "viajes" | "clientes";
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth();
@@ -32,7 +33,7 @@ export default function App() {
             ContaScan
           </span>
           <div className="inline-flex rounded-xl border border-plum-600 bg-plum-950/60 p-0.5">
-            {(["capturar", "facturas", "clientes"] as Tab[]).map((t) => (
+            {(["capturar", "facturas", "viajes", "clientes"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -61,6 +62,7 @@ export default function App() {
       </nav>
       {tab === "capturar" && <Captura onVerFacturas={() => setTab("facturas")} />}
       {tab === "facturas" && <Facturas />}
+      {tab === "viajes" && <Viajes />}
       {tab === "clientes" && <Clientes />}
     </div>
   );

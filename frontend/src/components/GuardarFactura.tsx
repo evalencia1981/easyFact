@@ -5,9 +5,11 @@ import {
   createCliente,
   listCentros,
   createCentro,
+  listManifiestosAbiertos,
   saveFactura,
   type Cliente,
   type Centro,
+  type Manifiesto,
 } from "../db";
 
 const inputCls =
@@ -18,8 +20,10 @@ const inputCls =
 export default function GuardarFactura({ factura, onSaved }: { factura: Factura; onSaved: () => void }) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [centros, setCentros] = useState<Centro[]>([]);
+  const [manifiestos, setManifiestos] = useState<Manifiesto[]>([]);
   const [clienteId, setClienteId] = useState("");
   const [centroId, setCentroId] = useState("");
+  const [manifiestoId, setManifiestoId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -46,6 +50,18 @@ export default function GuardarFactura({ factura, onSaved }: { factura: Factura;
       .then(setCentros)
       .catch((e) => setError(e.message));
   }, [clienteId]);
+
+  // Manifiestos (viajes) abiertos del camión seleccionado.
+  useEffect(() => {
+    setManifiestoId("");
+    if (!centroId) {
+      setManifiestos([]);
+      return;
+    }
+    listManifiestosAbiertos(centroId)
+      .then(setManifiestos)
+      .catch((e) => setError(e.message));
+  }, [centroId]);
 
   const addCliente = async () => {
     if (!nuevoCliente.trim()) return;
@@ -81,7 +97,7 @@ export default function GuardarFactura({ factura, onSaved }: { factura: Factura;
     setSaving(true);
     setError(null);
     try {
-      await saveFactura(factura, clienteId, centroId || null);
+      await saveFactura(factura, clienteId, centroId || null, manifiestoId || null);
       onSaved();
     } catch (e: any) {
       setError(e.message);
@@ -159,6 +175,27 @@ export default function GuardarFactura({ factura, onSaved }: { factura: Factura;
           </div>
         </div>
       </div>
+
+      {/* Manifiesto / viaje (opcional) — solo si el camión tiene viajes abiertos */}
+      {centroId && (
+        <div className="mt-3 flex flex-col gap-1">
+          <span className="text-xs font-medium text-haze-500">Manifiesto / viaje (para liquidar el anticipo)</span>
+          {manifiestos.length > 0 ? (
+            <select className={inputCls} value={manifiestoId} onChange={(e) => setManifiestoId(e.target.value)}>
+              <option value="">— sin viaje —</option>
+              {manifiestos.map((m) => (
+                <option key={m.id} value={m.id}>
+                  #{m.numero} · anticipo {m.anticipo.toLocaleString("es-CO")}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-xs text-haze-500">
+              Este camión no tiene viajes abiertos. Créalos en la pestaña “Viajes”.
+            </p>
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="mt-3 rounded-lg border border-pending/40 bg-pending/10 px-3 py-2 text-sm text-pending">{error}</p>

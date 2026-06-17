@@ -16,6 +16,35 @@ export interface Centro {
   alias: string;
 }
 
+export interface Manifiesto {
+  id: string;
+  cliente_id: string;
+  centro_costos_id: string;
+  conductor_id: string | null;
+  numero: string;
+  anticipo: number;
+  valor_viaje: number;
+  estado: string; // 'abierto' | 'liquidado'
+  created_at: string;
+}
+
+export interface LiquidacionRow {
+  manifiesto_id: string;
+  cliente_id: string;
+  centro_costos_id: string;
+  numero: string;
+  anticipo: number;
+  valor_viaje: number;
+  estado: string;
+  created_at: string;
+  cliente_nombre: string;
+  camion_placa: string;
+  camion_alias: string;
+  num_facturas: number;
+  total_gastos: number;
+  saldo: number;
+}
+
 export interface FacturaRow {
   id: string;
   created_at: string;
@@ -100,15 +129,65 @@ export async function deleteCentro(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ---- Manifiestos (viajes) ----
+export async function listManifiestosAbiertos(centroId: string): Promise<Manifiesto[]> {
+  const { data, error } = await supabase
+    .from("manifiesto")
+    .select("id, cliente_id, centro_costos_id, conductor_id, numero, anticipo, valor_viaje, estado, created_at")
+    .eq("centro_costos_id", centroId)
+    .eq("estado", "abierto")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Manifiesto[];
+}
+
+export async function createManifiesto(args: {
+  clienteId: string;
+  centroId: string;
+  numero: string;
+  anticipo: number;
+  valorViaje?: number;
+}): Promise<Manifiesto> {
+  const { data, error } = await supabase
+    .from("manifiesto")
+    .insert({
+      cliente_id: args.clienteId,
+      centro_costos_id: args.centroId,
+      numero: args.numero,
+      anticipo: args.anticipo,
+      valor_viaje: args.valorViaje ?? 0,
+    })
+    .select("id, cliente_id, centro_costos_id, conductor_id, numero, anticipo, valor_viaje, estado, created_at")
+    .single();
+  if (error) throw error;
+  return data as Manifiesto;
+}
+
+export async function setManifiestoEstado(id: string, estado: "abierto" | "liquidado"): Promise<void> {
+  const { error } = await supabase.from("manifiesto").update({ estado }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function listLiquidaciones(): Promise<LiquidacionRow[]> {
+  const { data, error } = await supabase
+    .from("liquidacion_viaje")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as LiquidacionRow[];
+}
+
 // ---- Facturas ----
 export async function saveFactura(
   f: Factura,
   clienteId: string,
-  centroId: string | null
+  centroId: string | null,
+  manifiestoId: string | null = null
 ): Promise<void> {
   const row = {
     cliente_id: clienteId,
     centro_costos_id: centroId,
+    manifiesto_id: manifiestoId,
     capturada_por: await uid(),
     tipo: f.tipo ?? "",
     tercero: f.tercero ?? "",
