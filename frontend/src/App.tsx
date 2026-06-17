@@ -1,11 +1,50 @@
 import { useEffect, useState, type ReactNode } from "react";
 import ImagenUpload from "./components/ImagenUpload";
 import ChatCaptura from "./components/ChatCaptura";
+import Login from "./components/Login";
+import { useAuth, ROLE_LABEL } from "./auth";
 import { api, pesos, type Factura, type FacturaItem } from "./api";
 
 type Modo = "foto" | "voz";
 
 export default function App() {
+  const { session, profile, loading, signOut } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="grid min-h-full place-items-center text-haze-400">
+        <span className="h-6 w-6 animate-spin rounded-full border-2 border-plum-600 border-t-iris" />
+      </div>
+    );
+  }
+  if (!session) return <Login />;
+
+  return (
+    <div>
+      <nav className="sticky top-0 z-10 border-b border-plum-700 bg-plum-950/80 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-2.5">
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-iris">ContaScan</span>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-haze-300">
+              {profile?.nombre || session.user.email}
+              {profile && (
+                <span className="ml-2 rounded-full bg-iris/15 px-2 py-0.5 text-[11px] text-iris">
+                  {ROLE_LABEL[profile.role]}
+                </span>
+              )}
+            </span>
+            <button onClick={signOut} className="text-haze-400 transition hover:text-iris hover:underline">
+              Salir
+            </button>
+          </div>
+        </div>
+      </nav>
+      <Captura />
+    </div>
+  );
+}
+
+function Captura() {
   const [modo, setModo] = useState<Modo>("foto");
   const [datos, setDatos] = useState<Factura | null>(null);
   const [confirmado, setConfirmado] = useState<Factura | null>(null);
