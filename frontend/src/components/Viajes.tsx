@@ -10,6 +10,7 @@ import {
   type LiquidacionRow,
 } from "../db";
 import { pesos } from "../api";
+import { useAuth } from "../auth";
 
 const inputCls =
   "w-full rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition placeholder:text-haze-500/70 focus:border-iris focus:shadow-glow";
@@ -17,6 +18,8 @@ const inputCls =
 // Viajes: crear manifiestos (número + anticipo, ligados a un camión) y ver la
 // liquidación de cada uno (anticipo − gastos = saldo).
 export default function Viajes() {
+  const { profile } = useAuth();
+  const puedeCrear = (profile?.role ?? "contador") !== "conductor"; // conductor solo ve sus viajes
   const [rows, setRows] = useState<LiquidacionRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,7 +102,8 @@ export default function Viajes() {
         del viaje, aquí ves el cruce: anticipo − gastos = saldo.
       </p>
 
-      {/* Alta de manifiesto */}
+      {/* Alta de manifiesto (no visible para conductor) */}
+      {puedeCrear && (
       <div className="mt-6 rounded-xl border border-plum-700 bg-plum-900/50 p-4">
         <h2 className="text-sm font-semibold text-haze-100">Nuevo viaje</h2>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -154,6 +158,7 @@ export default function Viajes() {
           {creando ? "Creando…" : "Crear viaje"}
         </button>
       </div>
+      )}
 
       {error && (
         <p className="mt-4 rounded-lg border border-pending/40 bg-pending/10 px-3 py-2 text-sm text-pending">{error}</p>

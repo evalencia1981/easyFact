@@ -25,6 +25,13 @@ export default function App() {
   }
   if (!session) return <Login />;
 
+  // Pestañas visibles por rol. El conductor no gestiona clientes.
+  const role = profile?.role ?? "contador";
+  const tabs: Tab[] =
+    role === "conductor"
+      ? ["capturar", "facturas", "viajes"]
+      : ["capturar", "facturas", "viajes", "clientes"];
+
   return (
     <div>
       <nav className="sticky top-0 z-10 border-b border-plum-700 bg-plum-950/80 backdrop-blur">
@@ -33,7 +40,7 @@ export default function App() {
             ContaScan
           </span>
           <div className="inline-flex rounded-xl border border-plum-600 bg-plum-950/60 p-0.5">
-            {(["capturar", "facturas", "viajes", "clientes"] as Tab[]).map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}

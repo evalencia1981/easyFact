@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Factura } from "../api";
+import { useAuth } from "../auth";
 import {
   listClientes,
   createCliente,
@@ -18,6 +19,8 @@ const inputCls =
 // Panel para asignar la factura a un cliente (flota) + centro de costos (camión)
 // y guardarla en Supabase. Permite crear cliente/centro al vuelo si no existen.
 export default function GuardarFactura({ factura, onSaved }: { factura: Factura; onSaved: () => void }) {
+  const { profile } = useAuth();
+  const puedeCrear = (profile?.role ?? "contador") !== "conductor"; // conductor no crea clientes/camiones
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [centros, setCentros] = useState<Centro[]>([]);
   const [manifiestos, setManifiestos] = useState<Manifiesto[]>([]);
@@ -125,19 +128,23 @@ export default function GuardarFactura({ factura, onSaved }: { factura: Factura;
               ))}
             </select>
           ) : (
-            <p className="text-xs text-haze-500">No tienes clientes aún. Crea uno:</p>
+            <p className="text-xs text-haze-500">
+              {puedeCrear ? "No tienes clientes aún. Crea uno:" : "Tu contador aún no te asigna un cliente."}
+            </p>
           )}
-          <div className="mt-1 flex gap-2">
-            <input
-              className={inputCls}
-              placeholder="Nuevo cliente (ej. Transportes López)"
-              value={nuevoCliente}
-              onChange={(e) => setNuevoCliente(e.target.value)}
-            />
-            <button onClick={addCliente} className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris hover:border-iris">
-              +
-            </button>
-          </div>
+          {puedeCrear && (
+            <div className="mt-1 flex gap-2">
+              <input
+                className={inputCls}
+                placeholder="Nuevo cliente (ej. Transportes López)"
+                value={nuevoCliente}
+                onChange={(e) => setNuevoCliente(e.target.value)}
+              />
+              <button onClick={addCliente} className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris hover:border-iris">
+                +
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Centro de costos */}
@@ -157,22 +164,24 @@ export default function GuardarFactura({ factura, onSaved }: { factura: Factura;
               </option>
             ))}
           </select>
-          <div className="mt-1 flex gap-2">
-            <input
-              className={inputCls}
-              placeholder="Nuevo camión (placa, ej. NUU699)"
-              value={nuevoCentro}
-              onChange={(e) => setNuevoCentro(e.target.value)}
-              disabled={!clienteId}
-            />
-            <button
-              onClick={addCentro}
-              disabled={!clienteId}
-              className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris hover:border-iris disabled:opacity-40"
-            >
-              +
-            </button>
-          </div>
+          {puedeCrear && (
+            <div className="mt-1 flex gap-2">
+              <input
+                className={inputCls}
+                placeholder="Nuevo camión (placa, ej. NUU699)"
+                value={nuevoCentro}
+                onChange={(e) => setNuevoCentro(e.target.value)}
+                disabled={!clienteId}
+              />
+              <button
+                onClick={addCentro}
+                disabled={!clienteId}
+                className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris hover:border-iris disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
