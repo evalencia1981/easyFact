@@ -23,6 +23,24 @@ export default function Facturas() {
   const [centros, setCentros] = useState<Centro[]>([]);
   const [clienteFiltro, setClienteFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+
+  // Atajo: rango = mes actual (offset 0) o mes pasado (offset -1).
+  const ymd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const presetMes = (offset: number) => {
+    const now = new Date();
+    setDesde(ymd(new Date(now.getFullYear(), now.getMonth() + offset, 1)));
+    setHasta(ymd(new Date(now.getFullYear(), now.getMonth() + offset + 1, 0)));
+  };
+  const limpiar = () => {
+    setClienteFiltro("");
+    setCentroFiltro("");
+    setDesde("");
+    setHasta("");
+  };
+  const hayFiltro = clienteFiltro || centroFiltro || desde || hasta;
 
   useEffect(() => {
     listFacturas().then(setRows).catch((e) => setError(e.message));
@@ -41,12 +59,15 @@ export default function Facturas() {
 
   const filtradas = useMemo(
     () =>
-      (rows ?? []).filter(
-        (f) =>
-          (!clienteFiltro || f.cliente_id === clienteFiltro) &&
-          (!centroFiltro || f.centro_costos_id === centroFiltro)
-      ),
-    [rows, clienteFiltro, centroFiltro]
+      (rows ?? []).filter((f) => {
+        if (clienteFiltro && f.cliente_id !== clienteFiltro) return false;
+        if (centroFiltro && f.centro_costos_id !== centroFiltro) return false;
+        const d = f.created_at.slice(0, 10); // YYYY-MM-DD
+        if (desde && d < desde) return false;
+        if (hasta && d > hasta) return false;
+        return true;
+      }),
+    [rows, clienteFiltro, centroFiltro, desde, hasta]
   );
 
   const total = filtradas.reduce((s, f) => s + (f.total || 0), 0);
@@ -77,43 +98,59 @@ export default function Facturas() {
 
       {/* Filtros */}
       {rows && rows.length > 0 && (
-        <div className="mt-5 flex flex-col gap-3 rounded-xl border border-plum-700 bg-plum-900/50 p-3 sm:flex-row sm:items-center">
-          <select
-            className={`${inputCls} flex-1`}
-            value={clienteFiltro}
-            onChange={(e) => setClienteFiltro(e.target.value)}
-          >
-            <option value="">Todos los clientes</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-          <select
-            className={`${inputCls} flex-1`}
-            value={centroFiltro}
-            onChange={(e) => setCentroFiltro(e.target.value)}
-            disabled={!clienteFiltro}
-          >
-            <option value="">{clienteFiltro ? "Todos los camiones" : "— elige cliente —"}</option>
-            {centros.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.identificador || c.alias || "(sin placa)"}
-              </option>
-            ))}
-          </select>
-          {(clienteFiltro || centroFiltro) && (
-            <button
-              onClick={() => {
-                setClienteFiltro("");
-                setCentroFiltro("");
-              }}
-              className="shrink-0 text-xs text-haze-400 transition hover:text-iris hover:underline"
+        <div className="mt-5 flex flex-col gap-3 rounded-xl border border-plum-700 bg-plum-900/50 p-3">
+          {/* Fila 1: cliente y camión */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select
+              className={`${inputCls} flex-1`}
+              value={clienteFiltro}
+              onChange={(e) => setClienteFiltro(e.target.value)}
             >
-              limpiar
+              <option value="">Todos los clientes</option>
+              {clientes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+            <select
+              className={`${inputCls} flex-1`}
+              value={centroFiltro}
+              onChange={(e) => setCentroFiltro(e.target.value)}
+              disabled={!clienteFiltro}
+            >
+              <option value="">{clienteFiltro ? "Todos los camiones" : "— elige cliente —"}</option>
+              {centros.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.identificador || c.alias || "(sin placa)"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Fila 2: rango de fechas + atajos */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-plum-700/60 pt-3">
+            <input type="date" className={inputCls} value={desde} onChange={(e) => setDesde(e.target.value)} />
+            <span className="text-xs text-haze-500">a</span>
+            <input type="date" className={inputCls} value={hasta} onChange={(e) => setHasta(e.target.value)} />
+            <button
+              onClick={() => presetMes(0)}
+              className="rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-1.5 text-xs text-haze-300 transition hover:border-iris hover:text-iris"
+            >
+              Este mes
             </button>
-          )}
+            <button
+              onClick={() => presetMes(-1)}
+              className="rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-1.5 text-xs text-haze-300 transition hover:border-iris hover:text-iris"
+            >
+              Mes pasado
+            </button>
+            {hayFiltro && (
+              <button onClick={limpiar} className="ml-auto text-xs text-haze-400 transition hover:text-iris hover:underline">
+                limpiar
+              </button>
+            )}
+          </div>
         </div>
       )}
 
