@@ -26,6 +26,8 @@ export default function Viajes() {
   const [clienteId, setClienteId] = useState("");
   const [centroId, setCentroId] = useState("");
   const [numero, setNumero] = useState("");
+  const [origen, setOrigen] = useState("");
+  const [destino, setDestino] = useState("");
   const [anticipo, setAnticipo] = useState("");
   const [valorViaje, setValorViaje] = useState("");
   const [creando, setCreando] = useState(false);
@@ -61,10 +63,14 @@ export default function Viajes() {
         clienteId,
         centroId,
         numero: numero.trim(),
+        origen: origen.trim(),
+        destino: destino.trim(),
         anticipo: Number(anticipo.replace(/[^\d.-]/g, "")) || 0,
         valorViaje: Number(valorViaje.replace(/[^\d.-]/g, "")) || 0,
       });
       setNumero("");
+      setOrigen("");
+      setDestino("");
       setAnticipo("");
       setValorViaje("");
       await cargar();
@@ -122,6 +128,14 @@ export default function Viajes() {
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-haze-500">Número de manifiesto</span>
             <input className={inputCls} placeholder="ej. MAN-00123" value={numero} onChange={(e) => setNumero(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-haze-500">Origen</span>
+            <input className={inputCls} placeholder="ej. Bogotá" value={origen} onChange={(e) => setOrigen(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-haze-500">Destino</span>
+            <input className={inputCls} placeholder="ej. Medellín" value={destino} onChange={(e) => setDestino(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-haze-500">Anticipo</span>
@@ -184,6 +198,11 @@ function ViajeCard({ r, onToggle }: { r: LiquidacionRow; onToggle: () => void })
             #{r.numero}
             <span className="ml-2 font-mono text-sm text-haze-400">{r.camion_placa || r.camion_alias}</span>
           </p>
+          {(r.origen || r.destino) && (
+            <p className="mt-0.5 text-xs text-iris">
+              {r.origen || "—"} → {r.destino || "—"}
+            </p>
+          )}
           <p className="mt-0.5 text-xs text-haze-400">
             {r.cliente_nombre} · {r.num_facturas} {r.num_facturas === 1 ? "factura" : "facturas"}
           </p>

@@ -21,6 +21,10 @@ create table if not exists manifiesto (
 create index if not exists manifiesto_cliente_idx on manifiesto(cliente_id);
 create index if not exists manifiesto_centro_idx  on manifiesto(centro_costos_id);
 
+-- Origen y destino del viaje (idempotente para DB ya creada).
+alter table manifiesto add column if not exists origen  text default '';
+alter table manifiesto add column if not exists destino text default '';
+
 -- Vincular cada factura a su viaje (opcional) para la liquidación.
 alter table factura add column if not exists manifiesto_id uuid references manifiesto(id) on delete set null;
 create index if not exists factura_manifiesto_idx on factura(manifiesto_id);
@@ -55,6 +59,8 @@ select
   m.centro_costos_id,
   m.conductor_id,
   m.numero,
+  m.origen,
+  m.destino,
   m.anticipo,
   m.valor_viaje,
   m.estado,

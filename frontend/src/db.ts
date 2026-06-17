@@ -22,6 +22,8 @@ export interface Manifiesto {
   centro_costos_id: string;
   conductor_id: string | null;
   numero: string;
+  origen: string;
+  destino: string;
   anticipo: number;
   valor_viaje: number;
   estado: string; // 'abierto' | 'liquidado'
@@ -33,6 +35,8 @@ export interface LiquidacionRow {
   cliente_id: string;
   centro_costos_id: string;
   numero: string;
+  origen: string;
+  destino: string;
   anticipo: number;
   valor_viaje: number;
   estado: string;
@@ -133,7 +137,7 @@ export async function deleteCentro(id: string): Promise<void> {
 export async function listManifiestosAbiertos(centroId: string): Promise<Manifiesto[]> {
   const { data, error } = await supabase
     .from("manifiesto")
-    .select("id, cliente_id, centro_costos_id, conductor_id, numero, anticipo, valor_viaje, estado, created_at")
+    .select("id, cliente_id, centro_costos_id, conductor_id, numero, origen, destino, anticipo, valor_viaje, estado, created_at")
     .eq("centro_costos_id", centroId)
     .eq("estado", "abierto")
     .order("created_at", { ascending: false });
@@ -147,6 +151,8 @@ export async function createManifiesto(args: {
   numero: string;
   anticipo: number;
   valorViaje?: number;
+  origen?: string;
+  destino?: string;
 }): Promise<Manifiesto> {
   const { data, error } = await supabase
     .from("manifiesto")
@@ -154,10 +160,12 @@ export async function createManifiesto(args: {
       cliente_id: args.clienteId,
       centro_costos_id: args.centroId,
       numero: args.numero,
+      origen: args.origen ?? "",
+      destino: args.destino ?? "",
       anticipo: args.anticipo,
       valor_viaje: args.valorViaje ?? 0,
     })
-    .select("id, cliente_id, centro_costos_id, conductor_id, numero, anticipo, valor_viaje, estado, created_at")
+    .select("id, cliente_id, centro_costos_id, conductor_id, numero, origen, destino, anticipo, valor_viaje, estado, created_at")
     .single();
   if (error) throw error;
   return data as Manifiesto;
