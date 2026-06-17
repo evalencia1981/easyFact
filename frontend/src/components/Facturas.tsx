@@ -6,6 +6,7 @@ import { pesos } from "../api";
 export default function Facturas() {
   const [rows, setRows] = useState<FacturaRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [detalle, setDetalle] = useState<FacturaRow | null>(null);
 
   useEffect(() => {
     listFacturas()
@@ -55,23 +56,146 @@ export default function Facturas() {
                     {f.numero ? ` · #${f.numero}` : ""}
                   </p>
                 </div>
-                <div className="shrink-0 text-right">
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <p className="font-semibold text-iris">{pesos(f.total || 0, f.moneda)}</p>
                   {f.tipo && (
                     <span
-                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] ${
+                      className={`inline-block rounded-full px-2 py-0.5 text-[10px] ${
                         f.tipo === "compra" ? "bg-pending/15 text-pending" : "bg-matched/15 text-matched"
                       }`}
                     >
                       {f.tipo}
                     </span>
                   )}
+                  <button
+                    onClick={() => setDetalle(f)}
+                    className="rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-1 text-xs text-haze-200 transition hover:border-iris hover:text-iris"
+                  >
+                    Detalle
+                  </button>
                 </div>
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      {detalle && <DetalleModal f={detalle} onClose={() => setDetalle(null)} />}
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------- //
+// Modal de detalle de una factura
+// --------------------------------------------------------------------------- //
+function DetalleModal({ f, onClose }: { f: FacturaRow; onClose: () => void }) {
+  const items = f.items ?? [];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-plum-950/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="my-8 w-full max-w-lg animate-rise rounded-2xl border border-plum-700 bg-plum-900 p-6 shadow-panel"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-display truncate text-lg font-semibold text-haze-50">
+              {f.tercero || "Sin tercero"}
+            </h2>
+            <p className="text-sm text-haze-400">{pesos(f.total || 0, f.moneda)}</p>
+          </div>
+          <button onClick={onClose} className="shrink-0 text-haze-400 transition hover:text-iris" title="Cerrar">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
+          <Dato k="Tipo" v={f.tipo} />
+          <Dato k="Fecha" v={f.fecha} />
+          <Dato k="Documento (NIT)" v={f.documento} />
+          <Dato k="Número" v={f.numero} />
+          <Dato k="Cliente / flota" v={f.cliente?.nombre} />
+          <Dato
+            k="Camión"
+            v={f.centro_costos ? `${f.centro_costos.identificador}${f.centro_costos.alias ? ` · ${f.centro_costos.alias}` : ""}` : f.centro_costos_txt}
+          />
+          <Dato k="Concepto" v={f.concepto} span />
+          <Dato k="Medio de pago" v={f.medio_pago} />
+          <Dato k="Confianza" v={f.confianza ? `${Math.round(f.confianza * 100)}%` : ""} />
+        </dl>
+
+        {/* Ítems */}
+        {items.length > 0 && (
+          <div className="mt-4">
+            <span className="text-xs font-semibold uppercase tracking-wide text-haze-500">Ítems</span>
+            <ul className="mt-2 flex flex-col gap-1">
+              {items.map((it, i) => (
+                <li key={i} className="flex justify-between gap-3 rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-1.5 text-sm">
+                  <span className="min-w-0 truncate text-haze-200">
+                    {it.descripcion}
+                    {it.cantidad ? <span className="text-haze-500"> ×{it.cantidad}</span> : null}
+                  </span>
+                  {typeof it.total_linea === "number" && (
+                    <span className="shrink-0 text-haze-300">{pesos(it.total_linea, f.moneda)}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Totales */}
+        <div className="mt-4 space-y-1 border-t border-plum-700 pt-3 text-sm">
+          <Total k="Subtotal" v={pesos(f.subtotal || 0, f.moneda)} />
+          <Total k="Impuestos" v={pesos(f.impuestos || 0, f.moneda)} />
+          <Total k="Total" v={pesos(f.total || 0, f.moneda)} fuerte />
+        </div>
+
+        {f.notas && (
+          <p className="mt-3 rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-2 text-xs text-haze-300">
+            <span className="text-haze-500">Notas: </span>
+            {f.notas}
+          </p>
+        )}
+
+        {f.texto_crudo && (
+          <details className="mt-3 rounded-lg border border-plum-700 bg-plum-950/40">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-haze-400">
+              Transcripción literal
+            </summary>
+            <pre className="max-h-48 overflow-auto whitespace-pre-wrap px-3 pb-3 font-mono text-xs text-haze-300">
+              {f.texto_crudo}
+            </pre>
+          </details>
+        )}
+
+        <p className="mt-3 text-right text-[11px] text-haze-600">
+          Capturada el {new Date(f.created_at).toLocaleString("es-CO")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Dato({ k, v, span }: { k: string; v?: string | null; span?: boolean }) {
+  if (!v) return null;
+  return (
+    <div className={span ? "col-span-2" : ""}>
+      <dt className="text-[11px] text-haze-500">{k}</dt>
+      <dd className="text-haze-100">{v}</dd>
+    </div>
+  );
+}
+
+function Total({ k, v, fuerte }: { k: string; v: string; fuerte?: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-haze-500">{k}</span>
+      <span className={fuerte ? "font-semibold text-iris" : "text-haze-200"}>{v}</span>
     </div>
   );
 }
