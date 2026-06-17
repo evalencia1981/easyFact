@@ -64,6 +64,11 @@ export async function createCliente(nombre: string, nit = ""): Promise<Cliente> 
   return data as Cliente;
 }
 
+export async function deleteCliente(id: string): Promise<void> {
+  const { error } = await supabase.from("cliente").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ---- Centros de costo (camiones) ----
 export async function listCentros(clienteId: string): Promise<Centro[]> {
   const { data, error } = await supabase
@@ -88,6 +93,11 @@ export async function createCentro(
     .single();
   if (error) throw error;
   return data as Centro;
+}
+
+export async function deleteCentro(id: string): Promise<void> {
+  const { error } = await supabase.from("centro_costos").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ---- Facturas ----

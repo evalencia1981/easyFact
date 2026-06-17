@@ -3,12 +3,13 @@ import ImagenUpload from "./components/ImagenUpload";
 import ChatCaptura from "./components/ChatCaptura";
 import Login from "./components/Login";
 import Facturas from "./components/Facturas";
+import Clientes from "./components/Clientes";
 import GuardarFactura from "./components/GuardarFactura";
 import { useAuth, ROLE_LABEL } from "./auth";
 import { api, pesos, type Factura, type FacturaItem } from "./api";
 
 type Modo = "foto" | "voz";
-type Tab = "capturar" | "facturas";
+type Tab = "capturar" | "facturas" | "clientes";
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth();
@@ -31,15 +32,15 @@ export default function App() {
             ContaScan
           </span>
           <div className="inline-flex rounded-xl border border-plum-600 bg-plum-950/60 p-0.5">
-            {(["capturar", "facturas"] as Tab[]).map((t) => (
+            {(["capturar", "facturas", "clientes"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`rounded-lg px-4 py-1 text-sm font-medium transition ${
+                className={`rounded-lg px-3 py-1 text-sm font-medium capitalize transition ${
                   tab === t ? "bg-iris text-plum-950" : "text-haze-400 hover:text-iris"
                 }`}
               >
-                {t === "capturar" ? "Capturar" : "Facturas"}
+                {t}
               </button>
             ))}
           </div>
@@ -58,7 +59,9 @@ export default function App() {
           </div>
         </div>
       </nav>
-      {tab === "capturar" ? <Captura onVerFacturas={() => setTab("facturas")} /> : <Facturas />}
+      {tab === "capturar" && <Captura onVerFacturas={() => setTab("facturas")} />}
+      {tab === "facturas" && <Facturas />}
+      {tab === "clientes" && <Clientes />}
     </div>
   );
 }
