@@ -23,47 +23,52 @@ from intake.chat import conversar_doc
 # --------------------------------------------------------------------------- #
 # Esquema flexible: factura formal O apunte a mano. Casi todo opcional.
 # --------------------------------------------------------------------------- #
+# NOTA: las `description` SÍ se envían a Gemini (responseSchema) y son la guía más
+# fuerte para mapear cada dato; el prompt refuerza, pero el modelo lee esto primero.
 FACTURA_SCHEMA = {
     "type": "object",
     "properties": {
-        # Quién y cuándo (todo opcional: puede ser solo un nombre garabateado).
-        "tipo": {"type": "string"},          # "venta" | "compra" | "" si no se infiere
-        "tercero": {"type": "string"},       # nombre del cliente o proveedor
-        "documento": {"type": "string"},     # NIT/cédula del tercero, si aparece
-        "numero": {"type": "string"},        # número de factura/recibo, si aparece
-        "fecha": {"type": "string"},         # fecha tal como se vea (texto libre)
-        "concepto": {"type": "string"},      # descripción general del movimiento
-        "centro_costos": {"type": "string"}, # dimensión contable opcional: placa del vehículo
-                                             # (parqueaderos, peajes, combustible), o proyecto/obra/
-                                             # sede/departamento. Genérico para futuras contabilidades.
-        "medio_pago": {"type": "string"},    # forma de pago si aparece: "Efectivo", "Tarjeta",
-                                             # "Transferencia", "Crédito"... Opcional.
-
-        # Detalle opcional. Cada línea con sus propios campos opcionales.
+        "tipo": {"type": "string",
+                 "description": "'venta' si es un cobro a un cliente; 'compra' si es un gasto/pago a un proveedor; '' si no se puede determinar."},
+        "tercero": {"type": "string",
+                    "description": "Nombre del cliente o proveedor (el comercio/empresa de la factura)."},
+        "documento": {"type": "string",
+                      "description": "NIT o cédula del tercero, si aparece."},
+        "numero": {"type": "string",
+                   "description": "Número de la factura o recibo, si aparece."},
+        "fecha": {"type": "string",
+                  "description": "Fecha del documento tal como se vea (texto libre)."},
+        "concepto": {"type": "string",
+                     "description": "Descripción general del movimiento (ej. 'parqueadero', 'combustible')."},
+        "centro_costos": {"type": "string",
+                          "description": "PLACA del vehículo si aparece (ej. 'NUU699', 'ABC123'); común en "
+                                         "parqueaderos, peajes, combustible, mantenimiento. Si no hay placa, "
+                                         "puede ser un proyecto/obra/sede/centro de costo. Si nada de eso aparece, ''."},
+        "medio_pago": {"type": "string",
+                       "description": "Forma de pago si aparece: 'Efectivo', 'Tarjeta', 'Transferencia', 'Crédito'... Si no aparece, ''."},
         "items": {
             "type": "array",
+            "description": "Detalle opcional: una línea por concepto que se distinga.",
             "items": {
                 "type": "object",
                 "properties": {
-                    "descripcion": {"type": "string"},
-                    "cantidad": {"type": "number"},
-                    "valor_unitario": {"type": "number"},
-                    "total_linea": {"type": "number"},
+                    "descripcion": {"type": "string", "description": "Descripción de la línea."},
+                    "cantidad": {"type": "number", "description": "Cantidad, si se ve."},
+                    "valor_unitario": {"type": "number", "description": "Valor unitario, si se ve."},
+                    "total_linea": {"type": "number", "description": "Total de la línea, si se ve."},
                 },
                 "required": ["descripcion"],
             },
         },
-
-        # Importes. Si no aparecen, 0. No se obliga ninguno.
-        "subtotal": {"type": "number"},
-        "impuestos": {"type": "number"},
-        "total": {"type": "number"},
-        "moneda": {"type": "string"},        # default "COP" si no se especifica
-
-        # Respaldo y control de calidad.
-        "texto_crudo": {"type": "string"},   # transcripción LITERAL de lo leído (OBLIGATORIO)
-        "notas": {"type": "string"},         # cualquier cosa que no encaje en los campos
-        "confianza": {"type": "number"},     # autoevaluación 0..1 de qué tan legible/completo
+        "subtotal": {"type": "number", "description": "Subtotal antes de impuestos; 0 si no aparece."},
+        "impuestos": {"type": "number", "description": "Impuestos/IVA; 0 si no aparece."},
+        "total": {"type": "number", "description": "Valor total a cobrar/pagar; 0 si no aparece."},
+        "moneda": {"type": "string", "description": "Moneda; 'COP' por defecto en Colombia."},
+        "texto_crudo": {"type": "string",
+                        "description": "OBLIGATORIO. Transcripción LITERAL de todo el texto/números que se logre leer, tal cual aparece."},
+        "notas": {"type": "string", "description": "Cualquier dato relevante que no encaje en los demás campos."},
+        "confianza": {"type": "number",
+                      "description": "Autoevaluación 0..1 de qué tan legible y completo quedó (0.9+ nítida; 0.5 parcial)."},
     },
     "required": ["texto_crudo"],
 }
