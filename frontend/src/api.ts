@@ -21,6 +21,7 @@ export interface Factura {
   fecha?: string;
   concepto?: string;
   centro_costos?: string; // dimensión contable opcional: placa de vehículo, proyecto, obra, sede…
+  medio_pago?: string; // forma de pago (opcional): efectivo, tarjeta, transferencia, crédito…
   items?: FacturaItem[];
   subtotal?: number;
   impuestos?: number;

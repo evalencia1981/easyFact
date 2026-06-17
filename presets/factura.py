@@ -36,6 +36,8 @@ FACTURA_SCHEMA = {
         "centro_costos": {"type": "string"}, # dimensión contable opcional: placa del vehículo
                                              # (parqueaderos, peajes, combustible), o proyecto/obra/
                                              # sede/departamento. Genérico para futuras contabilidades.
+        "medio_pago": {"type": "string"},    # forma de pago si aparece: "Efectivo", "Tarjeta",
+                                             # "Transferencia", "Crédito"... Opcional.
 
         # Detalle opcional. Cada línea con sus propios campos opcionales.
         "items": {
@@ -81,6 +83,8 @@ esquema JSON lo que REALMENTE se ve. Reglas:
 - `centro_costos`: dimensión contable opcional. Para vehículos suele ser la PLACA (parqueaderos,
   peajes, combustible, mantenimiento, lavado), transcríbela tal cual (ej. "NUU699", "ABC123"). En
   otros documentos puede ser un proyecto/obra/sede/centro de costo si se indica. Si no hay, "".
+- `medio_pago`: la forma de pago si aparece (ej. "Efectivo", "Tarjeta", "Transferencia",
+  "Crédito"). Transcríbela tal cual; si no aparece, "".
 - `total`: el valor total a cobrar/pagar si está visible o es sumable con confianza.
 - `moneda`: "COP" por defecto en Colombia salvo que se indique otra.
 - `confianza`: número 0..1 con tu autoevaluación de qué tan legible y completo quedó
@@ -101,6 +105,8 @@ Reglas:
 - `tipo`: "venta" si es un cobro a un cliente; "compra" si es un pago a un proveedor.
 - `centro_costos`: dimensión contable opcional. Si el usuario menciona una placa de vehículo
   (ej. "NUU699"), un proyecto, obra, sede o centro de costo, regístralo; si no, "".
+- `medio_pago`: si el usuario indica cómo se pagó (efectivo, tarjeta, transferencia, crédito),
+  regístralo; si no, "".
 - `moneda`: "COP" por defecto. No inventes datos; si algo no se dijo, déjalo vacío/0.
 - `confianza`: tu autoevaluación 0..1 de qué tan completo está el registro.
 Devuelve solo el JSON del esquema (data = registro + respuesta)."""
@@ -109,8 +115,8 @@ Devuelve solo el JSON del esquema (data = registro + respuesta)."""
 def _vacio() -> dict:
     return {
         "tipo": "", "tercero": "", "documento": "", "numero": "", "fecha": "",
-        "concepto": "", "centro_costos": "", "items": [], "subtotal": 0, "impuestos": 0,
-        "total": 0, "moneda": "COP", "texto_crudo": "", "notas": "", "confianza": 0,
+        "concepto": "", "centro_costos": "", "medio_pago": "", "items": [], "subtotal": 0,
+        "impuestos": 0, "total": 0, "moneda": "COP", "texto_crudo": "", "notas": "", "confianza": 0,
     }
 
 

@@ -184,6 +184,21 @@ function FacturaEditor({
             onChange={(e) => set("centro_costos", e.target.value)}
           />
         </Campo>
+        <Campo label="Medio de pago">
+          <input
+            className={inputCls}
+            list="medios-pago"
+            placeholder="opcional · ej. Efectivo, Tarjeta…"
+            value={datos.medio_pago || ""}
+            onChange={(e) => set("medio_pago", e.target.value)}
+          />
+          <datalist id="medios-pago">
+            <option value="Efectivo" />
+            <option value="Tarjeta" />
+            <option value="Transferencia" />
+            <option value="Crédito" />
+          </datalist>
+        </Campo>
       </div>
 
       {/* Ítems */}
