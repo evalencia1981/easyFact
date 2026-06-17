@@ -1,23 +1,113 @@
-import { useEffect, useState } from "react";
-import { listFacturas, type FacturaRow } from "../db";
+import { useEffect, useMemo, useState } from "react";
+import {
+  listFacturas,
+  listClientes,
+  listCentros,
+  type FacturaRow,
+  type Cliente,
+  type Centro,
+} from "../db";
 import { pesos } from "../api";
 
-// Lista de facturas guardadas (RLS filtra según el rol del usuario).
+const inputCls =
+  "rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition focus:border-iris focus:shadow-glow";
+
+// Lista de facturas guardadas (RLS filtra según el rol del usuario) + filtros
+// por cliente/camión y total acumulado del resultado.
 export default function Facturas() {
   const [rows, setRows] = useState<FacturaRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<FacturaRow | null>(null);
 
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [centros, setCentros] = useState<Centro[]>([]);
+  const [clienteFiltro, setClienteFiltro] = useState("");
+  const [centroFiltro, setCentroFiltro] = useState("");
+
   useEffect(() => {
-    listFacturas()
-      .then(setRows)
-      .catch((e) => setError(e.message));
+    listFacturas().then(setRows).catch((e) => setError(e.message));
+    listClientes().then(setClientes).catch(() => {});
   }, []);
+
+  // Camiones del cliente filtrado (para el segundo desplegable).
+  useEffect(() => {
+    setCentroFiltro("");
+    if (!clienteFiltro) {
+      setCentros([]);
+      return;
+    }
+    listCentros(clienteFiltro).then(setCentros).catch(() => {});
+  }, [clienteFiltro]);
+
+  const filtradas = useMemo(
+    () =>
+      (rows ?? []).filter(
+        (f) =>
+          (!clienteFiltro || f.cliente_id === clienteFiltro) &&
+          (!centroFiltro || f.centro_costos_id === centroFiltro)
+      ),
+    [rows, clienteFiltro, centroFiltro]
+  );
+
+  const total = filtradas.reduce((s, f) => s + (f.total || 0), 0);
+  const monedaResumen = filtradas[0]?.moneda || "COP";
 
   return (
     <div className="mx-auto min-h-full w-full max-w-3xl px-4 py-8 sm:py-12">
       <h1 className="font-display text-2xl font-semibold text-haze-50">Facturas guardadas</h1>
       <p className="mt-1 text-sm text-haze-400">Lo que tú y tu equipo han capturado.</p>
+
+      {/* Filtros */}
+      {rows && rows.length > 0 && (
+        <div className="mt-5 flex flex-col gap-3 rounded-xl border border-plum-700 bg-plum-900/50 p-3 sm:flex-row sm:items-center">
+          <select
+            className={`${inputCls} flex-1`}
+            value={clienteFiltro}
+            onChange={(e) => setClienteFiltro(e.target.value)}
+          >
+            <option value="">Todos los clientes</option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${inputCls} flex-1`}
+            value={centroFiltro}
+            onChange={(e) => setCentroFiltro(e.target.value)}
+            disabled={!clienteFiltro}
+          >
+            <option value="">{clienteFiltro ? "Todos los camiones" : "— elige cliente —"}</option>
+            {centros.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.identificador || c.alias || "(sin placa)"}
+              </option>
+            ))}
+          </select>
+          {(clienteFiltro || centroFiltro) && (
+            <button
+              onClick={() => {
+                setClienteFiltro("");
+                setCentroFiltro("");
+              }}
+              className="shrink-0 text-xs text-haze-400 transition hover:text-iris hover:underline"
+            >
+              limpiar
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Total acumulado del filtro */}
+      {rows && rows.length > 0 && (
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-iris/30 bg-iris/5 px-4 py-2.5 text-sm">
+          <span className="text-haze-300">
+            {filtradas.length} {filtradas.length === 1 ? "factura" : "facturas"}
+          </span>
+          <span className="font-semibold text-iris">{pesos(total, monedaResumen)}</span>
+        </div>
+      )}
 
       {error && (
         <p className="mt-6 rounded-lg border border-pending/40 bg-pending/10 px-3 py-2 text-sm text-pending">{error}</p>
@@ -35,9 +125,15 @@ export default function Facturas() {
         </p>
       )}
 
-      {rows && rows.length > 0 && (
-        <ul className="mt-6 flex flex-col gap-2.5">
-          {rows.map((f) => (
+      {rows && rows.length > 0 && filtradas.length === 0 && (
+        <p className="mt-6 rounded-xl border border-dashed border-plum-700 px-4 py-8 text-center text-sm text-haze-500">
+          Ninguna factura coincide con el filtro.
+        </p>
+      )}
+
+      {filtradas.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-2.5">
+          {filtradas.map((f) => (
             <li
               key={f.id}
               className="animate-rise rounded-xl border border-plum-700 bg-plum-900/50 p-4 shadow-panel"
