@@ -40,10 +40,11 @@ export default function Clientes() {
     if (!nombre.trim()) return;
     setError(null);
     try {
-      await createCliente(nombre.trim(), nit.trim());
+      const c = await createCliente(nombre.trim(), nit.trim());
       setNombre("");
       setNit("");
       await cargar();
+      setExpandido(c.id); // abrir el cliente nuevo para agregarle camiones
     } catch (e: any) {
       setError(e.message);
     }
@@ -142,6 +143,8 @@ function ClienteCard({
   const [placa, setPlaca] = useState("");
   const [alias, setAlias] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Conteo: si ya cargué los camiones uso ese; si no, el de mis_clientes().
+  const numCamiones = centros?.length ?? cliente.num_camiones ?? 0;
 
   // Vincular dueño
   const [emailDueno, setEmailDueno] = useState("");
@@ -225,6 +228,7 @@ function ClienteCard({
             <span className="block truncate font-medium text-haze-50">{cliente.nombre}</span>
             <span className="block text-xs text-haze-500">
               {cliente.nit ? `NIT ${cliente.nit}` : "sin NIT"}
+              {` · 🚚 ${numCamiones} ${numCamiones === 1 ? "camión" : "camiones"}`}
               {cliente.propietario_nombre ? ` · Dueño: ${cliente.propietario_nombre}` : " · sin dueño"}
             </span>
           </span>

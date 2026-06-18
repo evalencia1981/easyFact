@@ -23,6 +23,7 @@ export interface ClienteAdmin {
   propietario_id: string | null;
   propietario_nombre: string | null;
   propietario_email: string | null;
+  num_camiones?: number;
 }
 
 export interface Manifiesto {
