@@ -79,8 +79,10 @@ export interface FacturaRow {
   notas: string;
   confianza: number;
   items: FacturaItem[];
+  manifiesto_id: string | null;
   cliente?: { nombre: string } | null;
   centro_costos?: { alias: string; identificador: string } | null;
+  manifiesto?: { numero: string } | null;
 }
 
 async function uid(): Promise<string> {
@@ -288,7 +290,7 @@ export async function listFacturas(): Promise<FacturaRow[]> {
   const { data, error } = await supabase
     .from("factura")
     .select(
-      "id, created_at, cliente_id, centro_costos_id, tipo, tercero, documento, numero, fecha, concepto, centro_costos_txt, medio_pago, subtotal, impuestos, total, moneda, texto_crudo, notas, confianza, items, cliente(nombre), centro_costos(alias, identificador)"
+      "id, created_at, cliente_id, centro_costos_id, manifiesto_id, tipo, tercero, documento, numero, fecha, concepto, centro_costos_txt, medio_pago, subtotal, impuestos, total, moneda, texto_crudo, notas, confianza, items, cliente(nombre), centro_costos(alias, identificador), manifiesto(numero)"
     )
     .order("created_at", { ascending: false });
   if (error) throw error;

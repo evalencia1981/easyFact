@@ -3,9 +3,11 @@ import {
   listFacturas,
   listClientes,
   listCentros,
+  listLiquidaciones,
   type FacturaRow,
   type Cliente,
   type Centro,
+  type LiquidacionRow,
 } from "../db";
 import { pesos } from "../api";
 
@@ -18,6 +20,7 @@ export default function Facturas() {
   const [rows, setRows] = useState<FacturaRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<FacturaRow | null>(null);
+  const [liqMap, setLiqMap] = useState<Map<string, LiquidacionRow>>(new Map());
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [centros, setCentros] = useState<Centro[]>([]);
@@ -45,6 +48,10 @@ export default function Facturas() {
   useEffect(() => {
     listFacturas().then(setRows).catch((e) => setError(e.message));
     listClientes().then(setClientes).catch(() => {});
+    // Liquidación por viaje (anticipo/gastos) para cruzar en cada factura.
+    listLiquidaciones()
+      .then((ls) => setLiqMap(new Map(ls.map((l) => [l.manifiesto_id, l]))))
+      .catch(() => {});
   }, []);
 
   // Camiones del cliente filtrado (para el segundo desplegable).
@@ -224,6 +231,13 @@ export default function Facturas() {
                     {f.medio_pago ? ` · ${f.medio_pago}` : ""}
                     {f.numero ? ` · #${f.numero}` : ""}
                   </p>
+                  {f.manifiesto_id && liqMap.get(f.manifiesto_id) && (
+                    <p className="mt-1 text-[11px] text-iris">
+                      🧾 Viaje #{liqMap.get(f.manifiesto_id)!.numero} · gastado{" "}
+                      {pesos(liqMap.get(f.manifiesto_id)!.total_gastos)} de{" "}
+                      {pesos(liqMap.get(f.manifiesto_id)!.anticipo)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <p className="font-semibold text-iris">{pesos(f.total || 0, f.moneda)}</p>
@@ -249,7 +263,13 @@ export default function Facturas() {
         </ul>
       )}
 
-      {detalle && <DetalleModal f={detalle} onClose={() => setDetalle(null)} />}
+      {detalle && (
+        <DetalleModal
+          f={detalle}
+          liq={detalle.manifiesto_id ? liqMap.get(detalle.manifiesto_id) : undefined}
+          onClose={() => setDetalle(null)}
+        />
+      )}
     </div>
   );
 }
@@ -257,7 +277,15 @@ export default function Facturas() {
 // --------------------------------------------------------------------------- //
 // Modal de detalle de una factura
 // --------------------------------------------------------------------------- //
-function DetalleModal({ f, onClose }: { f: FacturaRow; onClose: () => void }) {
+function DetalleModal({
+  f,
+  liq,
+  onClose,
+}: {
+  f: FacturaRow;
+  liq?: LiquidacionRow;
+  onClose: () => void;
+}) {
   const items = f.items ?? [];
   return (
     <div
@@ -323,6 +351,36 @@ function DetalleModal({ f, onClose }: { f: FacturaRow; onClose: () => void }) {
           <Total k="Impuestos" v={pesos(f.impuestos || 0, f.moneda)} />
           <Total k="Total" v={pesos(f.total || 0, f.moneda)} fuerte />
         </div>
+
+        {/* Liquidación del viaje al que pertenece la factura */}
+        {liq && (
+          <div className="mt-4 rounded-lg border border-iris/30 bg-iris/5 p-3">
+            <p className="text-xs font-semibold text-haze-200">
+              Viaje #{liq.numero}
+              {(liq.origen || liq.destino) && (
+                <span className="font-normal text-haze-400">
+                  {" "}· {liq.origen || "—"} → {liq.destino || "—"}
+                </span>
+              )}
+            </p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-sm">
+              <div>
+                <p className="text-[11px] text-haze-500">Anticipo</p>
+                <p className="font-medium text-haze-100">{pesos(liq.anticipo)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-haze-500">Gastado</p>
+                <p className="font-medium text-haze-100">{pesos(liq.total_gastos)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-haze-500">{liq.saldo < 0 ? "Sobregirado" : "Disponible"}</p>
+                <p className={`font-semibold ${liq.saldo < 0 ? "text-pending" : "text-matched"}`}>
+                  {pesos(Math.abs(liq.saldo))}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {f.notas && (
           <p className="mt-3 rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-2 text-xs text-haze-300">
