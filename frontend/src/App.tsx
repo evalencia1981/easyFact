@@ -4,13 +4,22 @@ import ChatCaptura from "./components/ChatCaptura";
 import Login from "./components/Login";
 import Facturas from "./components/Facturas";
 import Clientes from "./components/Clientes";
+import Vehiculos from "./components/Vehiculos";
 import Viajes from "./components/Viajes";
 import GuardarFactura from "./components/GuardarFactura";
 import { useAuth, ROLE_LABEL } from "./auth";
 import { api, pesos, type Factura, type FacturaItem } from "./api";
 
 type Modo = "foto" | "voz";
-type Tab = "capturar" | "facturas" | "viajes" | "clientes";
+type Tab = "capturar" | "facturas" | "viajes" | "clientes" | "vehiculos";
+
+const TAB_LABEL: Record<Tab, string> = {
+  capturar: "Capturar",
+  facturas: "Facturas",
+  viajes: "Viajes",
+  clientes: "Clientes",
+  vehiculos: "Vehículos",
+};
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth();
@@ -25,12 +34,17 @@ export default function App() {
   }
   if (!session) return <Login />;
 
-  // Pestañas visibles por rol. El conductor no gestiona clientes.
+  // Pestañas visibles por rol:
+  //  - contador: gestiona varios Clientes (flotas)
+  //  - dueño: él ES la flota -> gestiona sus Vehículos
+  //  - conductor: solo captura y ve lo suyo (sin gestión)
   const role = profile?.role ?? "contador";
   const tabs: Tab[] =
     role === "conductor"
       ? ["capturar", "facturas", "viajes"]
-      : ["capturar", "facturas", "viajes", "clientes"];
+      : role === "propietario"
+        ? ["capturar", "facturas", "viajes", "vehiculos"]
+        : ["capturar", "facturas", "viajes", "clientes"];
 
   return (
     <div>
@@ -44,11 +58,11 @@ export default function App() {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`rounded-lg px-3 py-1 text-sm font-medium capitalize transition ${
+                className={`rounded-lg px-3 py-1 text-sm font-medium transition ${
                   tab === t ? "bg-iris text-plum-950" : "text-haze-400 hover:text-iris"
                 }`}
               >
-                {t}
+                {TAB_LABEL[t]}
               </button>
             ))}
           </div>
@@ -71,6 +85,7 @@ export default function App() {
       {tab === "facturas" && <Facturas />}
       {tab === "viajes" && <Viajes />}
       {tab === "clientes" && <Clientes />}
+      {tab === "vehiculos" && <Vehiculos />}
     </div>
   );
 }
