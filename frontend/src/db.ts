@@ -163,6 +163,42 @@ export async function deleteCentro(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ---- Conductores asignados a un camión ----
+export interface ConductorAsignado {
+  conductor_id: string;
+  nombre: string;
+  email: string;
+}
+
+export async function conductoresDeCentro(centroId: string): Promise<ConductorAsignado[]> {
+  const { data, error } = await supabase.rpc("conductores_de_centro", { p_centro: centroId });
+  if (error) throw error;
+  return (data ?? []) as ConductorAsignado[];
+}
+
+export async function buscarConductor(email: string): Promise<{ id: string; nombre: string } | null> {
+  const { data, error } = await supabase.rpc("buscar_conductor", { p_email: email });
+  if (error) throw error;
+  const arr = (data ?? []) as { id: string; nombre: string }[];
+  return arr[0] ?? null;
+}
+
+export async function asignarConductor(centroId: string, conductorId: string): Promise<void> {
+  const { error } = await supabase
+    .from("conductor_centro")
+    .insert({ centro_costos_id: centroId, conductor_id: conductorId });
+  if (error) throw error;
+}
+
+export async function desasignarConductor(centroId: string, conductorId: string): Promise<void> {
+  const { error } = await supabase
+    .from("conductor_centro")
+    .delete()
+    .eq("centro_costos_id", centroId)
+    .eq("conductor_id", conductorId);
+  if (error) throw error;
+}
+
 // ---- Manifiestos (viajes) ----
 export async function listManifiestosAbiertos(centroId: string): Promise<Manifiesto[]> {
   const { data, error } = await supabase

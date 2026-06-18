@@ -9,6 +9,7 @@ import {
   type Centro,
 } from "../db";
 import { useAuth } from "../auth";
+import CamionRow from "./CamionRow";
 
 const inputCls =
   "w-full rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition placeholder:text-haze-500/70 focus:border-iris focus:shadow-glow";
@@ -131,20 +132,9 @@ function FlotaVehiculos({ flota }: { flota: ClienteAdmin }) {
       ) : centros.length === 0 ? (
         <p className="mt-2 text-xs text-haze-500">Sin camiones todavía. Agrega el primero abajo.</p>
       ) : (
-        <ul className="mt-3 flex flex-col gap-1.5">
+        <ul className="mt-3 flex flex-col gap-2">
           {centros.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center justify-between rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-2"
-            >
-              <span className="text-sm text-haze-100">
-                <span className="font-mono">{c.identificador || "(sin placa)"}</span>
-                {c.alias && <span className="text-haze-400"> · {c.alias}</span>}
-              </span>
-              <button onClick={() => borrar(c.id)} className="text-xs text-haze-500 transition hover:text-pending">
-                ✕
-              </button>
-            </li>
+            <CamionRow key={c.id} centro={c} onDelete={() => borrar(c.id)} />
           ))}
         </ul>
       )}
