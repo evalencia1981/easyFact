@@ -4,12 +4,14 @@ import {
   listClientes,
   listCentros,
   listLiquidaciones,
+  setFacturaDeducible,
   type FacturaRow,
   type Cliente,
   type Centro,
   type LiquidacionRow,
 } from "../db";
 import { pesos } from "../api";
+import { useAuth } from "../auth";
 
 const inputCls =
   "rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition focus:border-iris focus:shadow-glow";
@@ -17,9 +19,23 @@ const inputCls =
 // Lista de facturas guardadas (RLS filtra según el rol del usuario) + filtros
 // por cliente/camión y total acumulado del resultado.
 export default function Facturas() {
+  const { profile } = useAuth();
+  const puedeMarcar = (profile?.role ?? "contador") !== "conductor"; // el contador/dueño revisa
   const [rows, setRows] = useState<FacturaRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<FacturaRow | null>(null);
+
+  const toggleDeducible = async (f: FacturaRow) => {
+    if (!puedeMarcar) return;
+    const nuevo = !f.deducible;
+    try {
+      await setFacturaDeducible(f.id, nuevo);
+      setRows((rs) => (rs ?? []).map((x) => (x.id === f.id ? { ...x, deducible: nuevo } : x)));
+      setDetalle((d) => (d && d.id === f.id ? { ...d, deducible: nuevo } : d));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
   const [liqMap, setLiqMap] = useState<Map<string, LiquidacionRow>>(new Map());
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -241,15 +257,16 @@ export default function Facturas() {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <p className="font-semibold text-iris">{pesos(f.total || 0, f.moneda)}</p>
-                  {f.tipo && (
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-[10px] ${
-                        f.tipo === "compra" ? "bg-pending/15 text-pending" : "bg-matched/15 text-matched"
-                      }`}
-                    >
-                      {f.tipo}
-                    </span>
-                  )}
+                  <button
+                    onClick={() => toggleDeducible(f)}
+                    disabled={!puedeMarcar}
+                    title={puedeMarcar ? "Marcar deducible / no deducible" : undefined}
+                    className={`rounded-full px-2 py-0.5 text-[10px] transition ${
+                      f.deducible ? "bg-matched/15 text-matched" : "bg-pending/15 text-pending"
+                    } ${puedeMarcar ? "hover:opacity-80" : "cursor-default"}`}
+                  >
+                    {f.deducible ? "Deducible" : "No deducible"}
+                  </button>
                   <button
                     onClick={() => setDetalle(f)}
                     className="rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-1 text-xs text-haze-200 transition hover:border-iris hover:text-iris"
@@ -267,6 +284,8 @@ export default function Facturas() {
         <DetalleModal
           f={detalle}
           liq={detalle.manifiesto_id ? liqMap.get(detalle.manifiesto_id) : undefined}
+          puedeMarcar={puedeMarcar}
+          onToggleDeducible={() => toggleDeducible(detalle)}
           onClose={() => setDetalle(null)}
         />
       )}
@@ -280,10 +299,14 @@ export default function Facturas() {
 function DetalleModal({
   f,
   liq,
+  puedeMarcar,
+  onToggleDeducible,
   onClose,
 }: {
   f: FacturaRow;
   liq?: LiquidacionRow;
+  puedeMarcar: boolean;
+  onToggleDeducible: () => void;
   onClose: () => void;
 }) {
   const items = f.items ?? [];
@@ -309,6 +332,19 @@ function DetalleModal({
             </svg>
           </button>
         </div>
+
+        {/* Deducible / no deducible (lo revisa el contador) */}
+        <button
+          onClick={onToggleDeducible}
+          disabled={!puedeMarcar}
+          className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition ${
+            f.deducible ? "bg-matched/15 text-matched" : "bg-pending/15 text-pending"
+          } ${puedeMarcar ? "hover:opacity-80" : "cursor-default"}`}
+          title={puedeMarcar ? "Cambiar deducible / no deducible" : undefined}
+        >
+          {f.deducible ? "✓ Deducible" : "✕ No deducible"}
+          {puedeMarcar && <span className="text-[10px] opacity-70">(cambiar)</span>}
+        </button>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
           <Dato k="Tipo" v={f.tipo} />

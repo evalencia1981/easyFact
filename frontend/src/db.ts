@@ -83,6 +83,7 @@ export interface FacturaRow {
   texto_crudo: string;
   notas: string;
   confianza: number;
+  deducible: boolean;
   items: FacturaItem[];
   manifiesto_id: string | null;
   cliente?: { nombre: string } | null;
@@ -343,11 +344,16 @@ export async function saveFactura(
   if (error) throw error;
 }
 
+export async function setFacturaDeducible(id: string, deducible: boolean): Promise<void> {
+  const { error } = await supabase.from("factura").update({ deducible }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function listFacturas(): Promise<FacturaRow[]> {
   const { data, error } = await supabase
     .from("factura")
     .select(
-      "id, created_at, cliente_id, centro_costos_id, manifiesto_id, tipo, tercero, documento, numero, fecha, concepto, centro_costos_txt, medio_pago, subtotal, impuestos, total, moneda, texto_crudo, notas, confianza, items, cliente(nombre), centro_costos(alias, identificador), manifiesto(numero)"
+      "id, created_at, cliente_id, centro_costos_id, manifiesto_id, tipo, tercero, documento, numero, fecha, concepto, centro_costos_txt, medio_pago, subtotal, impuestos, total, moneda, texto_crudo, notas, confianza, deducible, items, cliente(nombre), centro_costos(alias, identificador), manifiesto(numero)"
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
