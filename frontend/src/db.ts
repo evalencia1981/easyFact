@@ -174,11 +174,24 @@ export async function deleteCentro(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---- Conductores asignados a un camión ----
+// ---- Conductores ----
+export interface Conductor {
+  id: string;
+  nombre: string;
+  email: string;
+}
+
 export interface ConductorAsignado {
   conductor_id: string;
   nombre: string;
   email: string;
+}
+
+// Todos los conductores registrados (para elegir al asignar).
+export async function listarConductores(): Promise<Conductor[]> {
+  const { data, error } = await supabase.rpc("listar_conductores");
+  if (error) throw error;
+  return (data ?? []) as Conductor[];
 }
 
 export async function conductoresDeCentro(centroId: string): Promise<ConductorAsignado[]> {
