@@ -10,6 +10,7 @@ import {
   buscarPropietario,
   vincularPropietario,
   conectarDueno,
+  desvincularContador,
   type ClienteAdmin,
   type Centro,
 } from "../db";
@@ -92,6 +93,18 @@ export default function Clientes() {
     }
   };
 
+  // Cliente con dueño: el contador se desvincula (no borra; la flota le queda al dueño).
+  const desvincular = async (id: string) => {
+    if (!confirm("¿Quitar este cliente de tu gestión? Seguirá existiendo para su dueño.")) return;
+    setError(null);
+    try {
+      await desvincularContador(id);
+      setClientes((xs) => (xs ?? []).filter((x) => x.id !== id));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   return (
     <div className="mx-auto min-h-full w-full max-w-3xl px-4 py-8 sm:py-12">
       <h1 className="font-display text-2xl font-semibold text-haze-50">Clientes y camiones</h1>
@@ -168,6 +181,7 @@ export default function Clientes() {
               expanded={expandido === c.id}
               onToggle={() => setExpandido((id) => (id === c.id ? null : c.id))}
               onDelete={() => borrar(c.id)}
+              onDesvincular={() => desvincular(c.id)}
               onChanged={cargar}
             />
           ))}
@@ -186,6 +200,7 @@ function ClienteCard({
   expanded,
   onToggle,
   onDelete,
+  onDesvincular,
   onChanged,
 }: {
   cliente: ClienteAdmin;
@@ -193,6 +208,7 @@ function ClienteCard({
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onDesvincular: () => void;
   onChanged: () => void;
 }) {
   const [centros, setCentros] = useState<Centro[] | null>(null);
@@ -293,9 +309,15 @@ function ClienteCard({
             </span>
           </span>
         </button>
-        <button onClick={onDelete} className="shrink-0 text-xs text-haze-500 transition hover:text-pending">
-          eliminar
-        </button>
+        {cliente.propietario_id ? (
+          <button onClick={onDesvincular} className="shrink-0 text-xs text-haze-500 transition hover:text-iris" title="Dejar de gestionar (no borra; le queda al dueño)">
+            quitar de mi gestión
+          </button>
+        ) : (
+          <button onClick={onDelete} className="shrink-0 text-xs text-haze-500 transition hover:text-pending">
+            eliminar
+          </button>
+        )}
       </div>
 
       {expanded && (

@@ -148,6 +148,12 @@ export async function conectarDueno(email: string): Promise<string | null> {
   return (data as string | null) ?? null;
 }
 
+// El contador deja de gestionar un cliente con dueño (no borra nada).
+export async function desvincularContador(clienteId: string): Promise<void> {
+  const { error } = await supabase.rpc("desvincular_contador", { p_cliente: clienteId });
+  if (error) throw error;
+}
+
 // ---- Centros de costo (camiones) ----
 export async function listCentros(clienteId: string): Promise<Centro[]> {
   const { data, error } = await supabase
