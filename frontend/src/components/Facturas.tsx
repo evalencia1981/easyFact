@@ -44,6 +44,7 @@ export default function Facturas() {
   const [centroFiltro, setCentroFiltro] = useState("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const [dedFiltro, setDedFiltro] = useState<"todos" | "si" | "no">("todos");
 
   // Atajo: rango = mes actual (offset 0) o mes pasado (offset -1).
   const ymd = (d: Date) =>
@@ -58,8 +59,9 @@ export default function Facturas() {
     setCentroFiltro("");
     setDesde("");
     setHasta("");
+    setDedFiltro("todos");
   };
-  const hayFiltro = clienteFiltro || centroFiltro || desde || hasta;
+  const hayFiltro = clienteFiltro || centroFiltro || desde || hasta || dedFiltro !== "todos";
 
   useEffect(() => {
     listFacturas().then(setRows).catch((e) => setError(e.message));
@@ -85,15 +87,19 @@ export default function Facturas() {
       (rows ?? []).filter((f) => {
         if (clienteFiltro && f.cliente_id !== clienteFiltro) return false;
         if (centroFiltro && f.centro_costos_id !== centroFiltro) return false;
+        if (dedFiltro === "si" && !f.deducible) return false;
+        if (dedFiltro === "no" && f.deducible) return false;
         const d = f.created_at.slice(0, 10); // YYYY-MM-DD
         if (desde && d < desde) return false;
         if (hasta && d > hasta) return false;
         return true;
       }),
-    [rows, clienteFiltro, centroFiltro, desde, hasta]
+    [rows, clienteFiltro, centroFiltro, desde, hasta, dedFiltro]
   );
 
   const total = filtradas.reduce((s, f) => s + (f.total || 0), 0);
+  const totalDeducible = filtradas.filter((f) => f.deducible).reduce((s, f) => s + (f.total || 0), 0);
+  const totalNoDeducible = total - totalDeducible;
   const monedaResumen = filtradas[0]?.moneda || "COP";
 
   // Desglose por cliente (solo cuando se ven todos los clientes).
@@ -168,6 +174,26 @@ export default function Facturas() {
             >
               Mes pasado
             </button>
+
+            {/* Filtro deducible */}
+            <div className="inline-flex rounded-lg border border-plum-600 bg-plum-950/60 p-0.5">
+              {([
+                ["todos", "Todas"],
+                ["si", "Deducibles"],
+                ["no", "No deducibles"],
+              ] as const).map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setDedFiltro(v)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                    dedFiltro === v ? "bg-iris text-plum-950" : "text-haze-400 hover:text-iris"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {hayFiltro && (
               <button onClick={limpiar} className="ml-auto text-xs text-haze-400 transition hover:text-iris hover:underline">
                 limpiar
@@ -188,6 +214,12 @@ export default function Facturas() {
               </span>
             </span>
             <span className="text-base font-semibold text-iris">{pesos(total, monedaResumen)}</span>
+          </div>
+
+          {/* Desglose deducible / no deducible */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-iris/15 pt-2 text-xs">
+            <span className="text-matched">Deducible: {pesos(totalDeducible, monedaResumen)}</span>
+            <span className="text-pending">No deducible: {pesos(totalNoDeducible, monedaResumen)}</span>
           </div>
 
           {!clienteFiltro && porCliente.length > 0 && (
