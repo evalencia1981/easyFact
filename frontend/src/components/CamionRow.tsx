@@ -13,8 +13,17 @@ const inputCls =
 
 // Fila de un camión: placa/alias + conductores asignados (para que ellos suban
 // facturas). Se asigna escribiendo el CORREO del camionero, que debe estar
-// registrado como Conductor.
-export default function CamionRow({ centro, onDelete }: { centro: Centro; onDelete: () => void }) {
+// registrado como Conductor. En `readOnly` (vista del contador) se ocultan los
+// controles de quitar/asignar: solo muestra la información.
+export default function CamionRow({
+  centro,
+  onDelete,
+  readOnly = false,
+}: {
+  centro: Centro;
+  onDelete?: () => void;
+  readOnly?: boolean;
+}) {
   const [asignados, setAsignados] = useState<ConductorAsignado[] | null>(null);
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -70,9 +79,11 @@ export default function CamionRow({ centro, onDelete }: { centro: Centro; onDele
           <span className="font-mono">{centro.identificador || "(sin placa)"}</span>
           {centro.alias && <span className="text-haze-400"> · {centro.alias}</span>}
         </span>
-        <button onClick={onDelete} className="text-xs text-haze-500 transition hover:text-pending" title="Eliminar camión">
-          ✕
-        </button>
+        {!readOnly && onDelete && (
+          <button onClick={onDelete} className="text-xs text-haze-500 transition hover:text-pending" title="Eliminar camión">
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Conductores asignados */}
@@ -89,36 +100,40 @@ export default function CamionRow({ centro, onDelete }: { centro: Centro; onDele
               title={c.email}
             >
               👤 {c.nombre || c.email}
-              <button onClick={() => quitar(c.conductor_id)} className="text-iris/70 hover:text-pending" title="Quitar">
-                ✕
-              </button>
+              {!readOnly && (
+                <button onClick={() => quitar(c.conductor_id)} className="text-iris/70 hover:text-pending" title="Quitar">
+                  ✕
+                </button>
+              )}
             </span>
           ))
         )}
       </div>
 
       {/* Asignar por correo (debe estar registrado como Conductor) */}
-      <div className="mt-2 flex gap-2">
-        <input
-          className={inputCls}
-          type="email"
-          placeholder="correo del camionero (registrado)"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") asignar();
-          }}
-        />
-        <button
-          onClick={asignar}
-          disabled={asignando}
-          className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris transition hover:border-iris disabled:opacity-50"
-        >
-          {asignando ? "…" : "Asignar"}
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="mt-2 flex gap-2">
+          <input
+            className={inputCls}
+            type="email"
+            placeholder="correo del camionero (registrado)"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") asignar();
+            }}
+          />
+          <button
+            onClick={asignar}
+            disabled={asignando}
+            className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris transition hover:border-iris disabled:opacity-50"
+          >
+            {asignando ? "…" : "Asignar"}
+          </button>
+        </div>
+      )}
 
-      {msg && <p className="mt-1.5 text-[11px] text-pending">{msg}</p>}
+      {msg && !readOnly && <p className="mt-1.5 text-[11px] text-pending">{msg}</p>}
     </li>
   );
 }

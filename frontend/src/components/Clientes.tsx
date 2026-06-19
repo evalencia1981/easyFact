@@ -1,38 +1,36 @@
 import { useEffect, useState } from "react";
 import {
   listClientesAdmin,
-  createCliente,
-  deleteCliente,
   listCentros,
-  createCentro,
-  deleteCentro,
-  centroEnUso,
-  buscarPropietario,
-  vincularPropietario,
   conectarDueno,
   desvincularContador,
   type ClienteAdmin,
   type Centro,
 } from "../db";
-import { useAuth } from "../auth";
 import CamionRow from "./CamionRow";
 
 const inputCls =
   "w-full rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition placeholder:text-haze-500/70 focus:border-iris focus:shadow-glow";
 
-// Gestión de clientes (flotas), sus camiones y su dueño vinculado.
+// Vista del CONTADOR: conecta a sus clientes (dueños de flota) por correo y ve
+// la flota en SOLO LECTURA. El dueño administra sus camiones y conductores; el
+// contador lleva la contabilidad y solo puede "quitar de mi gestión".
 export default function Clientes() {
-  const { profile } = useAuth();
-  const esContador = (profile?.role ?? "contador") === "contador";
   const [clientes, setClientes] = useState<ClienteAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [nombre, setNombre] = useState("");
-  const [nit, setNit] = useState("");
   const [expandido, setExpandido] = useState<string | null>(null);
-  // Conectar dueño por correo
   const [emailDueno, setEmailDueno] = useState("");
   const [duenoMsg, setDuenoMsg] = useState<string | null>(null);
   const [conectando, setConectando] = useState(false);
+
+  const cargar = () =>
+    listClientesAdmin()
+      .then(setClientes)
+      .catch((e) => setError(e.message));
+
+  useEffect(() => {
+    cargar();
+  }, []);
 
   const conectar = async () => {
     if (!emailDueno.trim()) return;
@@ -54,46 +52,6 @@ export default function Clientes() {
     }
   };
 
-  const cargar = () =>
-    listClientesAdmin()
-      .then(setClientes)
-      .catch((e) => setError(e.message));
-
-  useEffect(() => {
-    cargar();
-  }, []);
-
-  const agregar = async () => {
-    if (!nombre.trim()) return;
-    setError(null);
-    try {
-      const c = await createCliente(nombre.trim(), nit.trim());
-      setNombre("");
-      setNit("");
-      await cargar();
-      setExpandido(c.id); // abrir el cliente nuevo para agregarle camiones
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  const borrar = async (id: string) => {
-    const c = (clientes ?? []).find((x) => x.id === id);
-    if (c && (c.propietario_id || (c.num_camiones ?? 0) > 0)) {
-      setError("No se puede eliminar esta flota: tiene dueño o camiones relacionados. Quita primero el dueño y los camiones.");
-      return;
-    }
-    if (!confirm("¿Eliminar este cliente?")) return;
-    setError(null);
-    try {
-      await deleteCliente(id);
-      setClientes((xs) => (xs ?? []).filter((x) => x.id !== id));
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  // Cliente con dueño: el contador se desvincula (no borra; la flota le queda al dueño).
   const desvincular = async (id: string) => {
     if (!confirm("¿Quitar este cliente de tu gestión? Seguirá existiendo para su dueño.")) return;
     setError(null);
@@ -107,16 +65,17 @@ export default function Clientes() {
 
   return (
     <div className="mx-auto min-h-full w-full max-w-3xl px-4 py-8 sm:py-12">
-      <h1 className="font-display text-2xl font-semibold text-haze-50">Clientes y camiones</h1>
+      <h1 className="font-display text-2xl font-semibold text-haze-50">Clientes</h1>
       <p className="mt-1 text-sm text-haze-400">
-        Da de alta tus clientes (flotas), sus camiones y el dueño de cada flota.
+        Conecta a tus clientes (dueños de flota) por correo. Ellos administran sus camiones y
+        conductores; tú llevas su contabilidad.
       </p>
 
-      {/* Conectar dueño por correo (camino recomendado: reutiliza su flota) */}
+      {/* Conectar un dueño */}
       <div className="mt-6 rounded-xl border border-iris/30 bg-iris/5 p-4">
-        <h2 className="text-sm font-semibold text-haze-100">Conectar un dueño</h2>
+        <h2 className="text-sm font-semibold text-haze-100">Conectar un cliente</h2>
         <p className="mt-0.5 text-xs text-haze-500">
-          Escribe el correo del dueño (registrado). Se conecta a su flota y verás sus mismos camiones.
+          Escribe el correo del dueño (registrado). Se conecta a su flota y verás sus camiones.
         </p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input
@@ -125,34 +84,19 @@ export default function Clientes() {
             placeholder="correo del dueño"
             value={emailDueno}
             onChange={(e) => setEmailDueno(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") conectar();
+            }}
           />
           <button
             onClick={conectar}
             disabled={conectando}
             className="shrink-0 rounded-xl bg-iris px-5 py-2.5 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright disabled:opacity-60"
           >
-            {conectando ? "Conectando…" : "Conectar dueño"}
+            {conectando ? "Conectando…" : "Conectar"}
           </button>
         </div>
         {duenoMsg && <p className="mt-2 text-xs text-pending">{duenoMsg}</p>}
-      </div>
-
-      {/* Alta de cliente sin cuenta de dueño */}
-      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-plum-700 bg-plum-900/50 p-4 sm:flex-row sm:items-end">
-        <label className="flex flex-1 flex-col gap-1">
-          <span className="text-xs font-medium text-haze-500">Nuevo cliente sin dueño (su dueño no tiene cuenta)</span>
-          <input className={inputCls} placeholder="ej. Transportes López" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        </label>
-        <label className="flex flex-col gap-1 sm:w-44">
-          <span className="text-xs font-medium text-haze-500">NIT (opcional)</span>
-          <input className={inputCls} placeholder="900.123.456" value={nit} onChange={(e) => setNit(e.target.value)} />
-        </label>
-        <button
-          onClick={agregar}
-          className="rounded-xl border border-plum-600 bg-plum-950/60 px-5 py-2.5 text-sm font-semibold text-haze-200 transition hover:border-iris hover:text-iris"
-        >
-          Crear
-        </button>
       </div>
 
       {error && (
@@ -167,7 +111,7 @@ export default function Clientes() {
 
       {clientes && clientes.length === 0 && (
         <p className="mt-8 rounded-xl border border-dashed border-plum-700 px-4 py-8 text-center text-sm text-haze-500">
-          Aún no tienes clientes. Crea el primero arriba.
+          Aún no tienes clientes. Conecta uno por su correo arriba.
         </p>
       )}
 
@@ -177,12 +121,9 @@ export default function Clientes() {
             <ClienteCard
               key={c.id}
               cliente={c}
-              esContador={esContador}
               expanded={expandido === c.id}
               onToggle={() => setExpandido((id) => (id === c.id ? null : c.id))}
-              onDelete={() => borrar(c.id)}
               onDesvincular={() => desvincular(c.id)}
-              onChanged={cargar}
             />
           ))}
         </ul>
@@ -192,100 +133,27 @@ export default function Clientes() {
 }
 
 // --------------------------------------------------------------------------- //
-// Tarjeta de cliente: dueño vinculado + camiones (carga al expandir)
+// Tarjeta de cliente (solo lectura): dueño + camiones con sus conductores
 // --------------------------------------------------------------------------- //
 function ClienteCard({
   cliente,
-  esContador,
   expanded,
   onToggle,
-  onDelete,
   onDesvincular,
-  onChanged,
 }: {
   cliente: ClienteAdmin;
-  esContador: boolean;
   expanded: boolean;
   onToggle: () => void;
-  onDelete: () => void;
   onDesvincular: () => void;
-  onChanged: () => void;
 }) {
   const [centros, setCentros] = useState<Centro[] | null>(null);
-  const [placa, setPlaca] = useState("");
-  const [alias, setAlias] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  // Conteo: si ya cargué los camiones uso ese; si no, el de mis_clientes().
   const numCamiones = centros?.length ?? cliente.num_camiones ?? 0;
-
-  // Vincular dueño
-  const [emailDueno, setEmailDueno] = useState("");
-  const [duenoMsg, setDuenoMsg] = useState<string | null>(null);
-  const [vinculando, setVinculando] = useState(false);
 
   useEffect(() => {
     if (expanded && centros === null) {
-      listCentros(cliente.id)
-        .then(setCentros)
-        .catch((e) => setError(e.message));
+      listCentros(cliente.id).then(setCentros).catch(() => {});
     }
   }, [expanded, centros, cliente.id]);
-
-  const agregar = async () => {
-    if (!placa.trim()) return;
-    setError(null);
-    try {
-      const c = await createCentro(cliente.id, placa.trim(), alias.trim());
-      setCentros((xs) => [...(xs ?? []), c]);
-      setPlaca("");
-      setAlias("");
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  const borrar = async (id: string) => {
-    setError(null);
-    try {
-      if (await centroEnUso(id)) {
-        setError("Ese camión tiene facturas o viajes relacionados; no se puede eliminar.");
-        return;
-      }
-      await deleteCentro(id);
-      setCentros((xs) => (xs ?? []).filter((c) => c.id !== id));
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  const vincular = async () => {
-    if (!emailDueno.trim()) return;
-    setVinculando(true);
-    setDuenoMsg(null);
-    try {
-      const dueno = await buscarPropietario(emailDueno);
-      if (!dueno) {
-        setDuenoMsg("Ese correo no está registrado como Dueño. Pídele que cree su cuenta (rol Dueño) y vuelve a vincular.");
-        return;
-      }
-      await vincularPropietario(cliente.id, dueno.id);
-      setEmailDueno("");
-      onChanged();
-    } catch (e: any) {
-      setDuenoMsg(e?.code === "23505" ? "Ese dueño ya tiene una flota asignada." : e.message);
-    } finally {
-      setVinculando(false);
-    }
-  };
-
-  const desvincular = async () => {
-    try {
-      await vincularPropietario(cliente.id, null);
-      onChanged();
-    } catch (e: any) {
-      setDuenoMsg(e.message);
-    }
-  };
 
   return (
     <li className="rounded-xl border border-plum-700 bg-plum-900/50 shadow-panel">
@@ -309,90 +177,31 @@ function ClienteCard({
             </span>
           </span>
         </button>
-        {cliente.propietario_id ? (
-          <button onClick={onDesvincular} className="shrink-0 text-xs text-haze-500 transition hover:text-iris" title="Dejar de gestionar (no borra; le queda al dueño)">
+        {cliente.propietario_id && (
+          <button
+            onClick={onDesvincular}
+            className="shrink-0 text-xs text-haze-500 transition hover:text-iris"
+            title="Dejar de gestionar (no borra; le queda al dueño)"
+          >
             quitar de mi gestión
-          </button>
-        ) : (
-          <button onClick={onDelete} className="shrink-0 text-xs text-haze-500 transition hover:text-pending">
-            eliminar
           </button>
         )}
       </div>
 
       {expanded && (
-        <div className="space-y-4 border-t border-plum-700 p-4">
-          {/* Dueño (solo el contador asigna) */}
-          {esContador && (
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-haze-500">Dueño de la flota</span>
-              {cliente.propietario_id ? (
-                <div className="mt-2 flex items-center justify-between rounded-lg border border-plum-700 bg-plum-950/40 px-3 py-2">
-                  <span className="min-w-0 text-sm text-haze-100">
-                    {cliente.propietario_nombre || "Dueño"}
-                    {cliente.propietario_email && <span className="text-haze-500"> · {cliente.propietario_email}</span>}
-                  </span>
-                  <button onClick={desvincular} className="shrink-0 text-xs text-haze-500 transition hover:text-pending">
-                    quitar
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                  <input
-                    className={inputCls}
-                    type="email"
-                    placeholder="correo del dueño (ya registrado)"
-                    value={emailDueno}
-                    onChange={(e) => setEmailDueno(e.target.value)}
-                  />
-                  <button
-                    onClick={vincular}
-                    disabled={vinculando}
-                    className="shrink-0 rounded-lg bg-iris px-4 py-2 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright disabled:opacity-60"
-                  >
-                    {vinculando ? "…" : "Vincular"}
-                  </button>
-                </div>
-              )}
-              {duenoMsg && <p className="mt-2 text-xs text-pending">{duenoMsg}</p>}
-            </div>
+        <div className="border-t border-plum-700 p-4">
+          <span className="text-xs font-semibold uppercase tracking-wide text-haze-500">Camiones</span>
+          {centros === null ? (
+            <p className="mt-2 text-xs text-haze-500">Cargando…</p>
+          ) : centros.length === 0 ? (
+            <p className="mt-2 text-xs text-haze-500">El dueño aún no ha registrado camiones.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-2">
+              {centros.map((c) => (
+                <CamionRow key={c.id} centro={c} readOnly />
+              ))}
+            </ul>
           )}
-
-          {/* Camiones */}
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-haze-500">Camiones</span>
-
-            {centros === null ? (
-              <p className="mt-2 text-xs text-haze-500">Cargando…</p>
-            ) : centros.length === 0 ? (
-              <p className="mt-2 text-xs text-haze-500">Sin camiones todavía.</p>
-            ) : (
-              <ul className="mt-2 flex flex-col gap-2">
-                {centros.map((c) => (
-                  <CamionRow key={c.id} centro={c} onDelete={() => borrar(c.id)} />
-                ))}
-              </ul>
-            )}
-
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-              <label className="flex flex-1 flex-col gap-1">
-                <span className="text-xs font-medium text-haze-500">Placa</span>
-                <input className={inputCls} placeholder="ej. NUU699" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
-              </label>
-              <label className="flex flex-1 flex-col gap-1">
-                <span className="text-xs font-medium text-haze-500">Alias (opcional)</span>
-                <input className={inputCls} placeholder="ej. Tractomula 1" value={alias} onChange={(e) => setAlias(e.target.value)} />
-              </label>
-              <button
-                onClick={agregar}
-                className="rounded-xl bg-iris px-4 py-2.5 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright"
-              >
-                Agregar camión
-              </button>
-            </div>
-          </div>
-
-          {error && <p className="text-xs text-pending">{error}</p>}
         </div>
       )}
     </li>
