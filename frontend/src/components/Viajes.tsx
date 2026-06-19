@@ -196,7 +196,13 @@ export default function Viajes() {
       {rows && rows.length > 0 && (
         <ul className="mt-6 flex flex-col gap-2.5">
           {rows.map((r) => (
-            <ViajeCard key={r.manifiesto_id} r={r} onToggle={() => toggleEstado(r)} onChanged={cargar} />
+            <ViajeCard
+              key={r.manifiesto_id}
+              r={r}
+              puedeEditar={puedeCrear}
+              onToggle={() => toggleEstado(r)}
+              onChanged={cargar}
+            />
           ))}
         </ul>
       )}
@@ -204,7 +210,17 @@ export default function Viajes() {
   );
 }
 
-function ViajeCard({ r, onToggle, onChanged }: { r: LiquidacionRow; onToggle: () => void; onChanged: () => void }) {
+function ViajeCard({
+  r,
+  puedeEditar,
+  onToggle,
+  onChanged,
+}: {
+  r: LiquidacionRow;
+  puedeEditar: boolean;
+  onToggle: () => void;
+  onChanged: () => void;
+}) {
   const [editando, setEditando] = useState(false);
 
   // saldo = anticipo − gastos.  >0 sobra anticipo (devuelve);  <0 la empresa le debe.
@@ -247,20 +263,32 @@ function ViajeCard({ r, onToggle, onChanged }: { r: LiquidacionRow; onToggle: ()
           )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <button
-            onClick={onToggle}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-              r.estado === "liquidado"
-                ? "bg-matched/15 text-matched hover:bg-matched/25"
-                : "bg-iris/15 text-iris hover:bg-iris/25"
-            }`}
-            title="Cambiar estado"
-          >
-            {r.estado}
-          </button>
-          <button onClick={() => setEditando(true)} className="text-[11px] text-haze-400 transition hover:text-iris hover:underline">
-            editar
-          </button>
+          {puedeEditar ? (
+            <button
+              onClick={onToggle}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                r.estado === "liquidado"
+                  ? "bg-matched/15 text-matched hover:bg-matched/25"
+                  : "bg-iris/15 text-iris hover:bg-iris/25"
+              }`}
+              title="Cambiar estado"
+            >
+              {r.estado}
+            </button>
+          ) : (
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                r.estado === "liquidado" ? "bg-matched/15 text-matched" : "bg-iris/15 text-iris"
+              }`}
+            >
+              {r.estado}
+            </span>
+          )}
+          {puedeEditar && (
+            <button onClick={() => setEditando(true)} className="text-[11px] text-haze-400 transition hover:text-iris hover:underline">
+              editar
+            </button>
+          )}
         </div>
       </div>
 
