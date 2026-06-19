@@ -31,8 +31,10 @@ export default function Viajes() {
   const [numero, setNumero] = useState("");
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
+  const [anticipoManifiesto, setAnticipoManifiesto] = useState("");
   const [anticipo, setAnticipo] = useState("");
   const [valorViaje, setValorViaje] = useState("");
+  const [documentoUrl, setDocumentoUrl] = useState("");
   const [creando, setCreando] = useState(false);
 
   const cargar = () =>
@@ -68,14 +70,18 @@ export default function Viajes() {
         numero: numero.trim(),
         origen: origen.trim(),
         destino: destino.trim(),
+        anticipoManifiesto: Number(anticipoManifiesto.replace(/[^\d.-]/g, "")) || 0,
         anticipo: Number(anticipo.replace(/[^\d.-]/g, "")) || 0,
         valorViaje: Number(valorViaje.replace(/[^\d.-]/g, "")) || 0,
+        documentoUrl: documentoUrl.trim(),
       });
       setNumero("");
       setOrigen("");
       setDestino("");
+      setAnticipoManifiesto("");
       setAnticipo("");
       setValorViaje("");
+      setDocumentoUrl("");
       await cargar();
     } catch (e: any) {
       setError(e.message);
@@ -142,12 +148,20 @@ export default function Viajes() {
             <input className={inputCls} placeholder="ej. Medellín" value={destino} onChange={(e) => setDestino(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-haze-500">Anticipo</span>
-            <input className={inputCls} inputMode="decimal" placeholder="ej. 1.500.000" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} />
+            <span className="text-xs font-medium text-haze-500">Anticipo del manifiesto (PDF)</span>
+            <input className={inputCls} inputMode="decimal" placeholder="ej. 5.401.000" value={anticipoManifiesto} onChange={(e) => setAnticipoManifiesto(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-iris">Anticipo al conductor</span>
+            <input className={inputCls} inputMode="decimal" placeholder="lo que le entregas (se cruza con gastos)" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-haze-500">Valor del viaje (opcional)</span>
-            <input className={inputCls} inputMode="decimal" placeholder="lo confirma el dueño" value={valorViaje} onChange={(e) => setValorViaje(e.target.value)} />
+            <input className={inputCls} inputMode="decimal" placeholder="ej. 5.500.000" value={valorViaje} onChange={(e) => setValorViaje(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1 sm:col-span-2">
+            <span className="text-xs font-medium text-haze-500">Link del PDF del manifiesto (Drive, etc.)</span>
+            <input className={inputCls} type="url" placeholder="https://drive.google.com/…" value={documentoUrl} onChange={(e) => setDocumentoUrl(e.target.value)} />
           </label>
         </div>
         <button
@@ -210,7 +224,18 @@ function ViajeCard({ r, onToggle }: { r: LiquidacionRow; onToggle: () => void })
           )}
           <p className="mt-0.5 text-xs text-haze-400">
             {r.cliente_nombre} · {r.num_facturas} {r.num_facturas === 1 ? "factura" : "facturas"}
+            {r.anticipo_manifiesto > 0 && ` · manifiesto ${pesos(r.anticipo_manifiesto)}`}
           </p>
+          {r.documento_url && (
+            <a
+              href={r.documento_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex items-center gap-1 text-[11px] text-iris underline-offset-2 hover:underline"
+            >
+              📄 Ver PDF del manifiesto
+            </a>
+          )}
         </div>
         <button
           onClick={onToggle}
@@ -227,7 +252,7 @@ function ViajeCard({ r, onToggle }: { r: LiquidacionRow; onToggle: () => void })
 
       <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
         <div className="rounded-lg border border-plum-700 bg-plum-950/40 py-2">
-          <p className="text-[11px] text-haze-500">Anticipo</p>
+          <p className="text-[11px] text-haze-500">Anticipo conductor</p>
           <p className="font-medium text-haze-100">{pesos(r.anticipo)}</p>
         </div>
         <div className="rounded-lg border border-plum-700 bg-plum-950/40 py-2">

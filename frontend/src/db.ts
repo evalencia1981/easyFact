@@ -34,8 +34,10 @@ export interface Manifiesto {
   numero: string;
   origen: string;
   destino: string;
-  anticipo: number;
+  anticipo: number; // entregado al conductor (se cruza con gastos)
+  anticipo_manifiesto: number; // el del PDF (informativo)
   valor_viaje: number;
+  documento_url: string;
   estado: string; // 'abierto' | 'liquidado'
   created_at: string;
 }
@@ -48,7 +50,9 @@ export interface LiquidacionRow {
   origen: string;
   destino: string;
   anticipo: number;
+  anticipo_manifiesto: number;
   valor_viaje: number;
+  documento_url: string;
   estado: string;
   created_at: string;
   cliente_nombre: string;
@@ -227,7 +231,7 @@ export async function desasignarConductor(centroId: string, conductorId: string)
 export async function listManifiestosAbiertos(centroId: string): Promise<Manifiesto[]> {
   const { data, error } = await supabase
     .from("manifiesto")
-    .select("id, cliente_id, centro_costos_id, conductor_id, numero, origen, destino, anticipo, valor_viaje, estado, created_at")
+    .select("id, cliente_id, centro_costos_id, conductor_id, numero, origen, destino, anticipo, anticipo_manifiesto, valor_viaje, documento_url, estado, created_at")
     .eq("centro_costos_id", centroId)
     .eq("estado", "abierto")
     .order("created_at", { ascending: false });
@@ -240,9 +244,11 @@ export async function createManifiesto(args: {
   centroId: string;
   numero: string;
   anticipo: number;
+  anticipoManifiesto?: number;
   valorViaje?: number;
   origen?: string;
   destino?: string;
+  documentoUrl?: string;
 }): Promise<Manifiesto> {
   const { data, error } = await supabase
     .from("manifiesto")
@@ -253,9 +259,11 @@ export async function createManifiesto(args: {
       origen: args.origen ?? "",
       destino: args.destino ?? "",
       anticipo: args.anticipo,
+      anticipo_manifiesto: args.anticipoManifiesto ?? 0,
       valor_viaje: args.valorViaje ?? 0,
+      documento_url: args.documentoUrl ?? "",
     })
-    .select("id, cliente_id, centro_costos_id, conductor_id, numero, origen, destino, anticipo, valor_viaje, estado, created_at")
+    .select("id, cliente_id, centro_costos_id, conductor_id, numero, origen, destino, anticipo, anticipo_manifiesto, valor_viaje, documento_url, estado, created_at")
     .single();
   if (error) throw error;
   return data as Manifiesto;
