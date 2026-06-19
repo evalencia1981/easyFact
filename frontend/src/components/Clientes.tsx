@@ -8,6 +8,7 @@ import {
   deleteCentro,
   buscarPropietario,
   vincularPropietario,
+  conectarDueno,
   type ClienteAdmin,
   type Centro,
 } from "../db";
@@ -26,6 +27,30 @@ export default function Clientes() {
   const [nombre, setNombre] = useState("");
   const [nit, setNit] = useState("");
   const [expandido, setExpandido] = useState<string | null>(null);
+  // Conectar dueño por correo
+  const [emailDueno, setEmailDueno] = useState("");
+  const [duenoMsg, setDuenoMsg] = useState<string | null>(null);
+  const [conectando, setConectando] = useState(false);
+
+  const conectar = async () => {
+    if (!emailDueno.trim()) return;
+    setConectando(true);
+    setDuenoMsg(null);
+    try {
+      const clienteId = await conectarDueno(emailDueno);
+      if (!clienteId) {
+        setDuenoMsg("Ese correo no está registrado como Dueño. Pídele que cree su cuenta (rol Dueño).");
+        return;
+      }
+      setEmailDueno("");
+      await cargar();
+      setExpandido(clienteId);
+    } catch (e: any) {
+      setDuenoMsg(e.message);
+    } finally {
+      setConectando(false);
+    }
+  };
 
   const cargar = () =>
     listClientesAdmin()
@@ -68,10 +93,35 @@ export default function Clientes() {
         Da de alta tus clientes (flotas), sus camiones y el dueño de cada flota.
       </p>
 
-      {/* Alta de cliente */}
-      <div className="mt-6 flex flex-col gap-2 rounded-xl border border-plum-700 bg-plum-900/50 p-4 sm:flex-row sm:items-end">
+      {/* Conectar dueño por correo (camino recomendado: reutiliza su flota) */}
+      <div className="mt-6 rounded-xl border border-iris/30 bg-iris/5 p-4">
+        <h2 className="text-sm font-semibold text-haze-100">Conectar un dueño</h2>
+        <p className="mt-0.5 text-xs text-haze-500">
+          Escribe el correo del dueño (registrado). Se conecta a su flota y verás sus mismos camiones.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            className={inputCls}
+            type="email"
+            placeholder="correo del dueño"
+            value={emailDueno}
+            onChange={(e) => setEmailDueno(e.target.value)}
+          />
+          <button
+            onClick={conectar}
+            disabled={conectando}
+            className="shrink-0 rounded-xl bg-iris px-5 py-2.5 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright disabled:opacity-60"
+          >
+            {conectando ? "Conectando…" : "Conectar dueño"}
+          </button>
+        </div>
+        {duenoMsg && <p className="mt-2 text-xs text-pending">{duenoMsg}</p>}
+      </div>
+
+      {/* Alta de cliente sin cuenta de dueño */}
+      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-plum-700 bg-plum-900/50 p-4 sm:flex-row sm:items-end">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="text-xs font-medium text-haze-500">Nuevo cliente / flota</span>
+          <span className="text-xs font-medium text-haze-500">Nuevo cliente sin dueño (su dueño no tiene cuenta)</span>
           <input className={inputCls} placeholder="ej. Transportes López" value={nombre} onChange={(e) => setNombre(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1 sm:w-44">
@@ -80,9 +130,9 @@ export default function Clientes() {
         </label>
         <button
           onClick={agregar}
-          className="rounded-xl bg-iris px-5 py-2.5 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright"
+          className="rounded-xl border border-plum-600 bg-plum-950/60 px-5 py-2.5 text-sm font-semibold text-haze-200 transition hover:border-iris hover:text-iris"
         >
-          Agregar
+          Crear
         </button>
       </div>
 

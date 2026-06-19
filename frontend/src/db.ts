@@ -135,6 +135,14 @@ export async function vincularPropietario(clienteId: string, propietarioId: stri
   if (error) throw error;
 }
 
+// Conecta al contador con la flota del dueño (la reutiliza o la crea compartida).
+// Devuelve el id del cliente conectado, o null si el correo no es un dueño.
+export async function conectarDueno(email: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("conectar_dueno", { p_email: email });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
 // ---- Centros de costo (camiones) ----
 export async function listCentros(clienteId: string): Promise<Centro[]> {
   const { data, error } = await supabase
