@@ -6,6 +6,7 @@ import {
   listCentros,
   createCentro,
   deleteCentro,
+  centroEnUso,
   buscarPropietario,
   vincularPropietario,
   conectarDueno,
@@ -46,7 +47,7 @@ export default function Clientes() {
       await cargar();
       setExpandido(clienteId);
     } catch (e: any) {
-      setDuenoMsg(e.message);
+      setDuenoMsg(e?.code === "23505" ? "Ese dueño ya tiene una flota asignada." : e.message);
     } finally {
       setConectando(false);
     }
@@ -76,11 +77,16 @@ export default function Clientes() {
   };
 
   const borrar = async (id: string) => {
-    if (!confirm("¿Eliminar este cliente y todos sus camiones y facturas?")) return;
+    const c = (clientes ?? []).find((x) => x.id === id);
+    if (c && (c.propietario_id || (c.num_camiones ?? 0) > 0)) {
+      setError("No se puede eliminar esta flota: tiene dueño o camiones relacionados. Quita primero el dueño y los camiones.");
+      return;
+    }
+    if (!confirm("¿Eliminar este cliente?")) return;
     setError(null);
     try {
       await deleteCliente(id);
-      setClientes((xs) => (xs ?? []).filter((c) => c.id !== id));
+      setClientes((xs) => (xs ?? []).filter((x) => x.id !== id));
     } catch (e: any) {
       setError(e.message);
     }
@@ -225,6 +231,10 @@ function ClienteCard({
   const borrar = async (id: string) => {
     setError(null);
     try {
+      if (await centroEnUso(id)) {
+        setError("Ese camión tiene facturas o viajes relacionados; no se puede eliminar.");
+        return;
+      }
       await deleteCentro(id);
       setCentros((xs) => (xs ?? []).filter((c) => c.id !== id));
     } catch (e: any) {
@@ -246,7 +256,7 @@ function ClienteCard({
       setEmailDueno("");
       onChanged();
     } catch (e: any) {
-      setDuenoMsg(e.message);
+      setDuenoMsg(e?.code === "23505" ? "Ese dueño ya tiene una flota asignada." : e.message);
     } finally {
       setVinculando(false);
     }

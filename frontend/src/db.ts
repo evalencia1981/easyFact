@@ -179,6 +179,16 @@ export async function deleteCentro(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ¿El camión tiene facturas o viajes? (para impedir borrarlo y perder datos)
+export async function centroEnUso(centroId: string): Promise<boolean> {
+  const f = await supabase.from("factura").select("id", { count: "exact", head: true }).eq("centro_costos_id", centroId);
+  if (f.error) throw f.error;
+  if ((f.count ?? 0) > 0) return true;
+  const m = await supabase.from("manifiesto").select("id", { count: "exact", head: true }).eq("centro_costos_id", centroId);
+  if (m.error) throw m.error;
+  return (m.count ?? 0) > 0;
+}
+
 // ---- Conductores ----
 export interface Conductor {
   id: string;

@@ -5,6 +5,7 @@ import {
   listCentros,
   createCentro,
   deleteCentro,
+  centroEnUso,
   type ClienteAdmin,
   type Centro,
 } from "../db";
@@ -116,6 +117,10 @@ function FlotaVehiculos({ flota }: { flota: ClienteAdmin }) {
   const borrar = async (id: string) => {
     setError(null);
     try {
+      if (await centroEnUso(id)) {
+        setError("Ese camión tiene facturas o viajes relacionados; no se puede eliminar.");
+        return;
+      }
       await deleteCentro(id);
       setCentros((xs) => (xs ?? []).filter((c) => c.id !== id));
     } catch (e: any) {
