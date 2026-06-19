@@ -20,13 +20,14 @@ const inputCls =
 // por cliente/camión y total acumulado del resultado.
 export default function Facturas() {
   const { profile } = useAuth();
-  const puedeMarcar = (profile?.role ?? "contador") !== "conductor"; // el contador/dueño revisa
+  // La deducibilidad es trabajo contable: solo el contador la ve y la marca.
+  const esContador = (profile?.role ?? "contador") === "contador";
   const [rows, setRows] = useState<FacturaRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<FacturaRow | null>(null);
 
   const toggleDeducible = async (f: FacturaRow) => {
-    if (!puedeMarcar) return;
+    if (!esContador) return;
     const nuevo = !f.deducible;
     try {
       await setFacturaDeducible(f.id, nuevo);
@@ -175,24 +176,26 @@ export default function Facturas() {
               Mes pasado
             </button>
 
-            {/* Filtro deducible */}
-            <div className="inline-flex rounded-lg border border-plum-600 bg-plum-950/60 p-0.5">
-              {([
-                ["todos", "Todas"],
-                ["si", "Deducibles"],
-                ["no", "No deducibles"],
-              ] as const).map(([v, label]) => (
-                <button
-                  key={v}
-                  onClick={() => setDedFiltro(v)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                    dedFiltro === v ? "bg-iris text-plum-950" : "text-haze-400 hover:text-iris"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* Filtro deducible (solo contador) */}
+            {esContador && (
+              <div className="inline-flex rounded-lg border border-plum-600 bg-plum-950/60 p-0.5">
+                {([
+                  ["todos", "Todas"],
+                  ["si", "Deducibles"],
+                  ["no", "No deducibles"],
+                ] as const).map(([v, label]) => (
+                  <button
+                    key={v}
+                    onClick={() => setDedFiltro(v)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                      dedFiltro === v ? "bg-iris text-plum-950" : "text-haze-400 hover:text-iris"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {hayFiltro && (
               <button onClick={limpiar} className="ml-auto text-xs text-haze-400 transition hover:text-iris hover:underline">
@@ -216,11 +219,13 @@ export default function Facturas() {
             <span className="text-base font-semibold text-iris">{pesos(total, monedaResumen)}</span>
           </div>
 
-          {/* Desglose deducible / no deducible */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-iris/15 pt-2 text-xs">
-            <span className="text-matched">Deducible: {pesos(totalDeducible, monedaResumen)}</span>
-            <span className="text-pending">No deducible: {pesos(totalNoDeducible, monedaResumen)}</span>
-          </div>
+          {/* Desglose deducible / no deducible (solo contador) */}
+          {esContador && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-iris/15 pt-2 text-xs">
+              <span className="text-matched">Deducible: {pesos(totalDeducible, monedaResumen)}</span>
+              <span className="text-pending">No deducible: {pesos(totalNoDeducible, monedaResumen)}</span>
+            </div>
+          )}
 
           {!clienteFiltro && porCliente.length > 0 && (
             <ul className="mt-2.5 flex flex-col gap-1 border-t border-iris/15 pt-2.5">
@@ -289,16 +294,17 @@ export default function Facturas() {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <p className="font-semibold text-iris">{pesos(f.total || 0, f.moneda)}</p>
-                  <button
-                    onClick={() => toggleDeducible(f)}
-                    disabled={!puedeMarcar}
-                    title={puedeMarcar ? "Marcar deducible / no deducible" : undefined}
-                    className={`rounded-full px-2 py-0.5 text-[10px] transition ${
-                      f.deducible ? "bg-matched/15 text-matched" : "bg-pending/15 text-pending"
-                    } ${puedeMarcar ? "hover:opacity-80" : "cursor-default"}`}
-                  >
-                    {f.deducible ? "Deducible" : "No deducible"}
-                  </button>
+                  {esContador && (
+                    <button
+                      onClick={() => toggleDeducible(f)}
+                      title="Marcar deducible / no deducible"
+                      className={`rounded-full px-2 py-0.5 text-[10px] transition hover:opacity-80 ${
+                        f.deducible ? "bg-matched/15 text-matched" : "bg-pending/15 text-pending"
+                      }`}
+                    >
+                      {f.deducible ? "Deducible" : "No deducible"}
+                    </button>
+                  )}
                   <button
                     onClick={() => setDetalle(f)}
                     className="rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-1 text-xs text-haze-200 transition hover:border-iris hover:text-iris"
@@ -316,7 +322,7 @@ export default function Facturas() {
         <DetalleModal
           f={detalle}
           liq={detalle.manifiesto_id ? liqMap.get(detalle.manifiesto_id) : undefined}
-          puedeMarcar={puedeMarcar}
+          esContador={esContador}
           onToggleDeducible={() => toggleDeducible(detalle)}
           onClose={() => setDetalle(null)}
         />
@@ -331,13 +337,13 @@ export default function Facturas() {
 function DetalleModal({
   f,
   liq,
-  puedeMarcar,
+  esContador,
   onToggleDeducible,
   onClose,
 }: {
   f: FacturaRow;
   liq?: LiquidacionRow;
-  puedeMarcar: boolean;
+  esContador: boolean;
   onToggleDeducible: () => void;
   onClose: () => void;
 }) {
@@ -365,18 +371,19 @@ function DetalleModal({
           </button>
         </div>
 
-        {/* Deducible / no deducible (lo revisa el contador) */}
-        <button
-          onClick={onToggleDeducible}
-          disabled={!puedeMarcar}
-          className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition ${
-            f.deducible ? "bg-matched/15 text-matched" : "bg-pending/15 text-pending"
-          } ${puedeMarcar ? "hover:opacity-80" : "cursor-default"}`}
-          title={puedeMarcar ? "Cambiar deducible / no deducible" : undefined}
-        >
-          {f.deducible ? "✓ Deducible" : "✕ No deducible"}
-          {puedeMarcar && <span className="text-[10px] opacity-70">(cambiar)</span>}
-        </button>
+        {/* Deducible / no deducible (solo el contador) */}
+        {esContador && (
+          <button
+            onClick={onToggleDeducible}
+            className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition hover:opacity-80 ${
+              f.deducible ? "bg-matched/15 text-matched" : "bg-pending/15 text-pending"
+            }`}
+            title="Cambiar deducible / no deducible"
+          >
+            {f.deducible ? "✓ Deducible" : "✕ No deducible"}
+            <span className="text-[10px] opacity-70">(cambiar)</span>
+          </button>
+        )}
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
           <Dato k="Tipo" v={f.tipo} />
