@@ -12,6 +12,7 @@ import {
 } from "../db";
 import { pesos } from "../api";
 import { useAuth } from "../auth";
+import SubirPdf from "./SubirPdf";
 
 const inputCls =
   "w-full rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition placeholder:text-haze-500/70 focus:border-iris focus:shadow-glow";
@@ -161,8 +162,9 @@ export default function Viajes() {
             <input className={inputCls} inputMode="decimal" placeholder="ej. 5.500.000" value={valorViaje} onChange={(e) => setValorViaje(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-xs font-medium text-haze-500">Link del PDF del manifiesto (Drive, etc.)</span>
-            <input className={inputCls} type="url" placeholder="https://drive.google.com/…" value={documentoUrl} onChange={(e) => setDocumentoUrl(e.target.value)} />
+            <span className="text-xs font-medium text-haze-500">PDF del manifiesto</span>
+            <input className={inputCls} type="url" placeholder="pega un link (Drive…) o sube el archivo →" value={documentoUrl} onChange={(e) => setDocumentoUrl(e.target.value)} />
+            <SubirPdf value={documentoUrl} onChange={setDocumentoUrl} />
           </label>
         </div>
         <button
@@ -338,8 +340,9 @@ function ViajeEdit({ r, onDone, onChanged }: { r: LiquidacionRow; onDone: () => 
           <input className={inputCls} inputMode="decimal" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} />
         </Campo>
         <label className="flex flex-col gap-1 sm:col-span-2">
-          <span className="text-xs font-medium text-haze-500">Link del PDF del manifiesto</span>
-          <input className={inputCls} type="url" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} />
+          <span className="text-xs font-medium text-haze-500">PDF del manifiesto</span>
+          <input className={inputCls} type="url" placeholder="link (Drive…) o sube el archivo →" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} />
+          <SubirPdf value={docUrl} onChange={setDocUrl} />
         </label>
       </div>
 

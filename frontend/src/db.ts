@@ -290,6 +290,17 @@ export async function updateManifiesto(
   if (error) throw error;
 }
 
+// Sube el PDF del manifiesto a Storage y devuelve su URL pública.
+export async function subirManifiestoPdf(file: File): Promise<string> {
+  const ext = (file.name.split(".").pop() || "pdf").toLowerCase();
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("manifiestos")
+    .upload(path, file, { contentType: file.type || "application/pdf", upsert: false });
+  if (error) throw error;
+  return supabase.storage.from("manifiestos").getPublicUrl(path).data.publicUrl;
+}
+
 export async function listLiquidaciones(): Promise<LiquidacionRow[]> {
   const { data, error } = await supabase
     .from("liquidacion_viaje")
