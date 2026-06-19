@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
 import {
-  listarConductores,
+  buscarConductor,
   conductoresDeCentro,
   asignarConductor,
   desasignarConductor,
   type Centro,
-  type Conductor,
   type ConductorAsignado,
 } from "../db";
 
+const inputCls =
+  "w-full rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition placeholder:text-haze-500/70 focus:border-iris focus:shadow-glow";
+
 // Fila de un camión: placa/alias + conductores asignados (para que ellos suban
-// facturas). Se asigna eligiendo de la LISTA de conductores ya registrados.
+// facturas). Se asigna escribiendo el CORREO del camionero, que debe estar
+// registrado como Conductor.
 export default function CamionRow({ centro, onDelete }: { centro: Centro; onDelete: () => void }) {
   const [asignados, setAsignados] = useState<ConductorAsignado[] | null>(null);
-  const [disponibles, setDisponibles] = useState<Conductor[]>([]);
-  const [sel, setSel] = useState("");
+  const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [asignando, setAsignando] = useState(false);
 
@@ -25,21 +27,24 @@ export default function CamionRow({ centro, onDelete }: { centro: Centro; onDele
 
   useEffect(() => {
     cargar();
-    listarConductores()
-      .then(setDisponibles)
-      .catch((e) => setMsg(e.message));
   }, [centro.id]);
 
-  // Conductores que aún no están asignados a este camión.
-  const sinAsignar = disponibles.filter((d) => !(asignados ?? []).some((a) => a.conductor_id === d.id));
-
   const asignar = async () => {
-    if (!sel) return;
+    if (!email.trim()) return;
     setAsignando(true);
     setMsg(null);
     try {
-      await asignarConductor(centro.id, sel);
-      setSel("");
+      const c = await buscarConductor(email);
+      if (!c) {
+        setMsg("Ese correo no está registrado como Conductor. Pídele que cree su cuenta (rol Conductor) y vuelve a asignar.");
+        return;
+      }
+      if ((asignados ?? []).some((a) => a.conductor_id === c.id)) {
+        setMsg("Ese conductor ya está asignado a este camión.");
+        return;
+      }
+      await asignarConductor(centro.id, c.id);
+      setEmail("");
       await cargar();
     } catch (e: any) {
       setMsg(e.message);
@@ -92,38 +97,26 @@ export default function CamionRow({ centro, onDelete }: { centro: Centro; onDele
         )}
       </div>
 
-      {/* Asignar eligiendo de los conductores registrados */}
-      {sinAsignar.length > 0 ? (
-        <div className="mt-2 flex gap-2">
-          <select
-            className="w-full rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition focus:border-iris focus:shadow-glow"
-            value={sel}
-            onChange={(e) => setSel(e.target.value)}
-          >
-            <option value="">— elige un conductor —</option>
-            {sinAsignar.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nombre ? `${d.nombre} · ${d.email}` : d.email}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={asignar}
-            disabled={asignando || !sel}
-            className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris transition hover:border-iris disabled:opacity-50"
-          >
-            {asignando ? "…" : "Asignar"}
-          </button>
-        </div>
-      ) : (
-        asignados !== null && (
-          <p className="mt-2 text-[11px] text-haze-600">
-            {disponibles.length === 0
-              ? "No hay conductores registrados todavía."
-              : "Todos los conductores registrados ya están asignados a este camión."}
-          </p>
-        )
-      )}
+      {/* Asignar por correo (debe estar registrado como Conductor) */}
+      <div className="mt-2 flex gap-2">
+        <input
+          className={inputCls}
+          type="email"
+          placeholder="correo del camionero (registrado)"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") asignar();
+          }}
+        />
+        <button
+          onClick={asignar}
+          disabled={asignando}
+          className="shrink-0 rounded-lg border border-plum-600 px-3 text-sm text-iris transition hover:border-iris disabled:opacity-50"
+        >
+          {asignando ? "…" : "Asignar"}
+        </button>
+      </div>
 
       {msg && <p className="mt-1.5 text-[11px] text-pending">{msg}</p>}
     </li>
