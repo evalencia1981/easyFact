@@ -249,9 +249,11 @@ function ViajeCard({
           )}
           <p className="mt-0.5 text-xs text-haze-400">
             {r.cliente_nombre} · {r.num_facturas} {r.num_facturas === 1 ? "factura" : "facturas"}
-            {r.anticipo_manifiesto > 0 && ` · manifiesto ${pesos(r.anticipo_manifiesto)}`}
+            {/* anticipo del manifiesto: NO visible para conductor */}
+            {puedeEditar && r.anticipo_manifiesto > 0 && ` · manifiesto ${pesos(r.anticipo_manifiesto)}`}
           </p>
-          {r.documento_url && (
+          {/* PDF del manifiesto: NO visible para conductor */}
+          {puedeEditar && r.documento_url && (
             <a
               href={r.documento_url}
               target="_blank"
