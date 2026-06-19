@@ -14,7 +14,9 @@ alter table manifiesto add column if not exists documento_url       text default
 
 -- La vista de liquidación expone ambos anticipos y el link; el saldo sigue
 -- usando `anticipo` (lo entregado al conductor) vs total de facturas del viaje.
-create or replace view liquidacion_viaje
+-- (drop + create: 'create or replace view' no deja insertar columnas en medio.)
+drop view if exists liquidacion_viaje;
+create view liquidacion_viaje
   with (security_invoker = on) as
 select
   m.id               as manifiesto_id,
