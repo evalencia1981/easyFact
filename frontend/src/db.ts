@@ -274,6 +274,22 @@ export async function setManifiestoEstado(id: string, estado: "abierto" | "liqui
   if (error) throw error;
 }
 
+export async function updateManifiesto(
+  id: string,
+  patch: {
+    numero?: string;
+    origen?: string;
+    destino?: string;
+    anticipo?: number;
+    anticipo_manifiesto?: number;
+    valor_viaje?: number;
+    documento_url?: string;
+  }
+): Promise<void> {
+  const { error } = await supabase.from("manifiesto").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
 export async function listLiquidaciones(): Promise<LiquidacionRow[]> {
   const { data, error } = await supabase
     .from("liquidacion_viaje")

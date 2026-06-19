@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   listClientes,
   listCentros,
   createManifiesto,
   listLiquidaciones,
   setManifiestoEstado,
+  updateManifiesto,
   type Cliente,
   type Centro,
   type LiquidacionRow,
@@ -193,7 +194,7 @@ export default function Viajes() {
       {rows && rows.length > 0 && (
         <ul className="mt-6 flex flex-col gap-2.5">
           {rows.map((r) => (
-            <ViajeCard key={r.manifiesto_id} r={r} onToggle={() => toggleEstado(r)} />
+            <ViajeCard key={r.manifiesto_id} r={r} onToggle={() => toggleEstado(r)} onChanged={cargar} />
           ))}
         </ul>
       )}
@@ -201,13 +202,19 @@ export default function Viajes() {
   );
 }
 
-function ViajeCard({ r, onToggle }: { r: LiquidacionRow; onToggle: () => void }) {
+function ViajeCard({ r, onToggle, onChanged }: { r: LiquidacionRow; onToggle: () => void; onChanged: () => void }) {
+  const [editando, setEditando] = useState(false);
+
   // saldo = anticipo − gastos.  >0 sobra anticipo (devuelve);  <0 la empresa le debe.
   const saldoLabel = useMemo(() => {
     if (r.saldo > 0) return { txt: "Sobra anticipo", cls: "text-haze-200" };
     if (r.saldo < 0) return { txt: "La empresa debe", cls: "text-pending" };
     return { txt: "Cuadrado", cls: "text-matched" };
   }, [r.saldo]);
+
+  if (editando) {
+    return <ViajeEdit r={r} onDone={() => setEditando(false)} onChanged={onChanged} />;
+  }
 
   return (
     <li className="animate-rise rounded-xl border border-plum-700 bg-plum-900/50 p-4 shadow-panel">
@@ -237,17 +244,22 @@ function ViajeCard({ r, onToggle }: { r: LiquidacionRow; onToggle: () => void })
             </a>
           )}
         </div>
-        <button
-          onClick={onToggle}
-          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-            r.estado === "liquidado"
-              ? "bg-matched/15 text-matched hover:bg-matched/25"
-              : "bg-iris/15 text-iris hover:bg-iris/25"
-          }`}
-          title="Cambiar estado"
-        >
-          {r.estado}
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <button
+            onClick={onToggle}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+              r.estado === "liquidado"
+                ? "bg-matched/15 text-matched hover:bg-matched/25"
+                : "bg-iris/15 text-iris hover:bg-iris/25"
+            }`}
+            title="Cambiar estado"
+          >
+            {r.estado}
+          </button>
+          <button onClick={() => setEditando(true)} className="text-[11px] text-haze-400 transition hover:text-iris hover:underline">
+            editar
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
@@ -265,5 +277,95 @@ function ViajeCard({ r, onToggle }: { r: LiquidacionRow; onToggle: () => void })
         </div>
       </div>
     </li>
+  );
+}
+
+// Edición en línea de los datos del viaje.
+function ViajeEdit({ r, onDone, onChanged }: { r: LiquidacionRow; onDone: () => void; onChanged: () => void }) {
+  const num = (v: string) => Number(v.replace(/[^\d.-]/g, "")) || 0;
+  const [numero, setNumero] = useState(r.numero);
+  const [origen, setOrigen] = useState(r.origen);
+  const [destino, setDestino] = useState(r.destino);
+  const [antMan, setAntMan] = useState(String(r.anticipo_manifiesto || ""));
+  const [anticipo, setAnticipo] = useState(String(r.anticipo || ""));
+  const [valorViaje, setValorViaje] = useState(String(r.valor_viaje || ""));
+  const [docUrl, setDocUrl] = useState(r.documento_url);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const guardar = async () => {
+    setGuardando(true);
+    setError(null);
+    try {
+      await updateManifiesto(r.manifiesto_id, {
+        numero: numero.trim(),
+        origen: origen.trim(),
+        destino: destino.trim(),
+        anticipo_manifiesto: num(antMan),
+        anticipo: num(anticipo),
+        valor_viaje: num(valorViaje),
+        documento_url: docUrl.trim(),
+      });
+      onChanged();
+      onDone();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <li className="animate-rise rounded-xl border border-iris/40 bg-plum-900/50 p-4 shadow-panel">
+      <p className="text-sm font-semibold text-haze-100">Editar viaje #{r.numero}</p>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Campo label="Número de manifiesto">
+          <input className={inputCls} value={numero} onChange={(e) => setNumero(e.target.value)} />
+        </Campo>
+        <Campo label="Valor del viaje (opcional)">
+          <input className={inputCls} inputMode="decimal" value={valorViaje} onChange={(e) => setValorViaje(e.target.value)} />
+        </Campo>
+        <Campo label="Origen">
+          <input className={inputCls} value={origen} onChange={(e) => setOrigen(e.target.value)} />
+        </Campo>
+        <Campo label="Destino">
+          <input className={inputCls} value={destino} onChange={(e) => setDestino(e.target.value)} />
+        </Campo>
+        <Campo label="Anticipo del manifiesto (PDF)">
+          <input className={inputCls} inputMode="decimal" value={antMan} onChange={(e) => setAntMan(e.target.value)} />
+        </Campo>
+        <Campo label="Anticipo al conductor">
+          <input className={inputCls} inputMode="decimal" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} />
+        </Campo>
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className="text-xs font-medium text-haze-500">Link del PDF del manifiesto</span>
+          <input className={inputCls} type="url" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} />
+        </label>
+      </div>
+
+      {error && <p className="mt-2 text-xs text-pending">{error}</p>}
+
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          onClick={guardar}
+          disabled={guardando}
+          className="rounded-xl bg-iris px-5 py-2 text-sm font-semibold text-plum-950 transition hover:bg-iris-bright disabled:opacity-60"
+        >
+          {guardando ? "Guardando…" : "Guardar"}
+        </button>
+        <button onClick={onDone} className="text-sm text-haze-400 transition hover:text-iris hover:underline">
+          Cancelar
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function Campo({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-haze-500">{label}</span>
+      {children}
+    </label>
   );
 }
