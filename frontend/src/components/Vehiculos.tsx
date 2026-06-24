@@ -6,6 +6,7 @@ import {
   createCentro,
   deleteCentro,
   centroEnUso,
+  actualizarEmpresa,
   type ClienteAdmin,
   type Centro,
 } from "../db";
@@ -132,6 +133,9 @@ function FlotaVehiculos({ flota }: { flota: ClienteAdmin }) {
     <div className="rounded-xl border border-plum-700 bg-plum-900/50 p-4 shadow-panel">
       <h2 className="font-medium text-haze-50">{flota.nombre}</h2>
 
+      {/* Datos de la empresa (para el Informe Anual): NIT, dirección, ciudad */}
+      <DatosEmpresa flota={flota} />
+
       {centros === null ? (
         <p className="mt-2 text-xs text-haze-500">Cargando…</p>
       ) : centros.length === 0 ? (
@@ -163,5 +167,67 @@ function FlotaVehiculos({ flota }: { flota: ClienteAdmin }) {
 
       {error && <p className="mt-2 text-xs text-pending">{error}</p>}
     </div>
+  );
+}
+
+// --------------------------------------------------------------------------- //
+// Datos de identificación de la empresa (los usa el Informe Anual del contador)
+// --------------------------------------------------------------------------- //
+function DatosEmpresa({ flota }: { flota: ClienteAdmin }) {
+  const [nit, setNit] = useState(flota.nit ?? "");
+  const [direccion, setDireccion] = useState(flota.direccion ?? "");
+  const [ciudad, setCiudad] = useState(flota.ciudad ?? "");
+  const [estado, setEstado] = useState<"idle" | "guardando" | "ok">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  const sucio = nit !== (flota.nit ?? "") || direccion !== (flota.direccion ?? "") || ciudad !== (flota.ciudad ?? "");
+
+  const guardar = async () => {
+    setEstado("guardando");
+    setError(null);
+    try {
+      await actualizarEmpresa(flota.id, { nit, direccion, ciudad });
+      flota.nit = nit;
+      flota.direccion = direccion;
+      flota.ciudad = ciudad;
+      setEstado("ok");
+    } catch (e: any) {
+      setError(e.message);
+      setEstado("idle");
+    }
+  };
+
+  return (
+    <details className="mt-3 rounded-lg border border-plum-700 bg-plum-950/40">
+      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-haze-400">
+        Datos de la empresa{" "}
+        {!nit && !direccion && !ciudad && <span className="text-pending">· faltan (para el informe)</span>}
+      </summary>
+      <div className="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-haze-500">NIT</span>
+          <input className={inputCls} value={nit} onChange={(e) => setNit(e.target.value)} placeholder="900.123.456-7" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-haze-500">Dirección</span>
+          <input className={inputCls} value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Cra 1 #2-3" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-haze-500">Ciudad</span>
+          <input className={inputCls} value={ciudad} onChange={(e) => setCiudad(e.target.value)} placeholder="Medellín" />
+        </label>
+      </div>
+      <div className="flex items-center gap-3 px-3 pb-3">
+        <button
+          onClick={guardar}
+          disabled={!sucio || estado === "guardando"}
+          className="rounded-lg bg-iris px-4 py-1.5 text-xs font-semibold text-plum-950 transition hover:bg-iris-bright disabled:opacity-50"
+        >
+          {estado === "guardando" ? "Guardando…" : "Guardar datos"}
+        </button>
+        {estado === "ok" && !sucio && <span className="text-xs text-matched">Guardado ✓</span>}
+        {error && <span className="text-xs text-pending">{error}</span>}
+      </div>
+    </details>
   );
 }

@@ -16,9 +16,16 @@ import { useAuth } from "../auth";
 const inputCls =
   "rounded-lg border border-plum-600 bg-plum-950/60 px-3 py-2 text-sm text-haze-50 outline-none transition focus:border-iris focus:shadow-glow";
 
+// Filtros con los que se puede abrir la lista (p. ej. desde el Informe Anual).
+export interface FacturasInicial {
+  cliente: string;
+  desde: string;
+  hasta: string;
+}
+
 // Lista de facturas guardadas (RLS filtra según el rol del usuario) + filtros
 // por cliente/camión y total acumulado del resultado.
-export default function Facturas() {
+export default function Facturas({ inicial }: { inicial?: FacturasInicial | null }) {
   const { profile } = useAuth();
   // La deducibilidad es trabajo contable: solo el contador la ve y la marca.
   const esContador = (profile?.role ?? "contador") === "contador";
@@ -41,10 +48,10 @@ export default function Facturas() {
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [centros, setCentros] = useState<Centro[]>([]);
-  const [clienteFiltro, setClienteFiltro] = useState("");
+  const [clienteFiltro, setClienteFiltro] = useState(inicial?.cliente ?? "");
   const [centroFiltro, setCentroFiltro] = useState("");
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
+  const [desde, setDesde] = useState(inicial?.desde ?? "");
+  const [hasta, setHasta] = useState(inicial?.hasta ?? "");
   const [dedFiltro, setDedFiltro] = useState<"todos" | "si" | "no">("todos");
 
   // Atajo: rango = mes actual (offset 0) o mes pasado (offset -1).

@@ -2,16 +2,17 @@ import { useEffect, useState, type ReactNode } from "react";
 import ImagenUpload from "./components/ImagenUpload";
 import ChatCaptura from "./components/ChatCaptura";
 import Login from "./components/Login";
-import Facturas from "./components/Facturas";
+import Facturas, { type FacturasInicial } from "./components/Facturas";
 import Clientes from "./components/Clientes";
 import Vehiculos from "./components/Vehiculos";
 import Viajes from "./components/Viajes";
+import Informe from "./components/Informe";
 import GuardarFactura from "./components/GuardarFactura";
 import { useAuth, ROLE_LABEL } from "./auth";
 import { api, pesos, type Factura, type FacturaItem } from "./api";
 
 type Modo = "foto" | "voz";
-type Tab = "capturar" | "facturas" | "viajes" | "clientes" | "vehiculos";
+type Tab = "capturar" | "facturas" | "viajes" | "clientes" | "vehiculos" | "informe";
 
 const TAB_LABEL: Record<Tab, string> = {
   capturar: "Capturar",
@@ -19,11 +20,25 @@ const TAB_LABEL: Record<Tab, string> = {
   viajes: "Viajes",
   clientes: "Clientes",
   vehiculos: "Vehículos",
+  informe: "Informe",
 };
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth();
   const [tab, setTab] = useState<Tab>("capturar");
+  // Filtro con el que el Informe puede abrir la lista de Facturas de un dueño.
+  const [facturasInicial, setFacturasInicial] = useState<FacturasInicial | null>(null);
+
+  // Navegar a Facturas filtrando por dueño + año (desde el Informe Anual).
+  const verFacturasDe = (clienteId: string, anio: number) => {
+    setFacturasInicial({ cliente: clienteId, desde: `${anio}-01-01`, hasta: `${anio}-12-31` });
+    setTab("facturas");
+  };
+  // Clic manual en una pestaña: si es Facturas, limpia el filtro heredado.
+  const irA = (t: Tab) => {
+    if (t === "facturas") setFacturasInicial(null);
+    setTab(t);
+  };
 
   if (loading) {
     return (
@@ -43,8 +58,8 @@ export default function App() {
     role === "conductor"
       ? ["capturar", "facturas", "viajes"]
       : role === "propietario"
-        ? ["capturar", "facturas", "viajes", "vehiculos"]
-        : ["capturar", "facturas", "viajes", "clientes"];
+        ? ["capturar", "facturas", "viajes", "vehiculos", "informe"]
+        : ["capturar", "facturas", "viajes", "clientes", "informe"];
 
   return (
     <div>
@@ -57,7 +72,7 @@ export default function App() {
             {tabs.map((t) => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => irA(t)}
                 className={`rounded-lg px-3 py-1 text-sm font-medium transition ${
                   tab === t ? "bg-iris text-plum-950" : "text-haze-400 hover:text-iris"
                 }`}
@@ -82,10 +97,13 @@ export default function App() {
         </div>
       </nav>
       {tab === "capturar" && <Captura onVerFacturas={() => setTab("facturas")} />}
-      {tab === "facturas" && <Facturas />}
+      {tab === "facturas" && (
+        <Facturas key={facturasInicial?.cliente ?? "todas"} inicial={facturasInicial} />
+      )}
       {tab === "viajes" && <Viajes />}
       {tab === "clientes" && <Clientes />}
       {tab === "vehiculos" && <Vehiculos />}
+      {tab === "informe" && <Informe onVerFacturas={verFacturasDe} />}
     </div>
   );
 }

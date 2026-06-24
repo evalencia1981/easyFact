@@ -20,6 +20,8 @@ export interface ClienteAdmin {
   id: string;
   nombre: string;
   nit: string;
+  direccion: string;
+  ciudad: string;
   propietario_id: string | null;
   propietario_nombre: string | null;
   propietario_email: string | null;
@@ -151,6 +153,22 @@ export async function conectarDueno(email: string): Promise<string | null> {
 // El contador deja de gestionar un cliente con dueño (no borra nada).
 export async function desvincularContador(clienteId: string): Promise<void> {
   const { error } = await supabase.rpc("desvincular_contador", { p_cliente: clienteId });
+  if (error) throw error;
+}
+
+// Datos de identificación de la empresa (para el Informe Anual). Editable por
+// el contador o el dueño del cliente (RPC SECURITY DEFINER).
+export async function actualizarEmpresa(
+  clienteId: string,
+  datos: { nombre?: string; nit?: string; direccion?: string; ciudad?: string }
+): Promise<void> {
+  const { error } = await supabase.rpc("actualizar_empresa", {
+    p_cliente: clienteId,
+    p_nombre: datos.nombre ?? null,
+    p_nit: datos.nit ?? null,
+    p_direccion: datos.direccion ?? null,
+    p_ciudad: datos.ciudad ?? null,
+  });
   if (error) throw error;
 }
 
