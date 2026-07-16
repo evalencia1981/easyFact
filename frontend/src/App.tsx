@@ -7,12 +7,13 @@ import Clientes from "./components/Clientes";
 import Vehiculos from "./components/Vehiculos";
 import Viajes from "./components/Viajes";
 import Informe from "./components/Informe";
+import Cuenta from "./components/Cuenta";
 import GuardarFactura from "./components/GuardarFactura";
 import { useAuth, ROLE_LABEL } from "./auth";
 import { api, pesos, type Factura, type FacturaItem } from "./api";
 
 type Modo = "foto" | "voz";
-type Tab = "capturar" | "facturas" | "viajes" | "clientes" | "vehiculos" | "informe";
+type Tab = "capturar" | "facturas" | "viajes" | "clientes" | "vehiculos" | "informe" | "cuenta";
 
 const TAB_LABEL: Record<Tab, string> = {
   capturar: "Capturar",
@@ -21,6 +22,7 @@ const TAB_LABEL: Record<Tab, string> = {
   clientes: "Clientes",
   vehiculos: "Vehículos",
   informe: "Informe",
+  cuenta: "Cuenta",
 };
 
 export default function App() {
@@ -53,13 +55,14 @@ export default function App() {
   //  - contador: gestiona varios Clientes (flotas)
   //  - dueño: él ES la flota -> gestiona sus Vehículos
   //  - conductor: solo captura y ve lo suyo (sin gestión)
+  // Cuenta la ven los tres: el conductor solo edita su nombre, sin empresa.
   const role = profile?.role ?? "contador";
   const tabs: Tab[] =
     role === "conductor"
-      ? ["capturar", "facturas", "viajes"]
+      ? ["capturar", "facturas", "viajes", "cuenta"]
       : role === "propietario"
-        ? ["capturar", "facturas", "viajes", "vehiculos", "informe"]
-        : ["capturar", "facturas", "viajes", "clientes", "informe"];
+        ? ["capturar", "facturas", "viajes", "vehiculos", "informe", "cuenta"]
+        : ["capturar", "facturas", "viajes", "clientes", "informe", "cuenta"];
 
   return (
     <div>
@@ -104,6 +107,7 @@ export default function App() {
       {tab === "clientes" && <Clientes />}
       {tab === "vehiculos" && <Vehiculos />}
       {tab === "informe" && <Informe onVerFacturas={verFacturasDe} />}
+      {tab === "cuenta" && <Cuenta />}
     </div>
   );
 }

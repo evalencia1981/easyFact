@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { actualizarMiNombre } from "./db";
 
 export type Role = "contador" | "propietario" | "conductor";
 
@@ -17,6 +18,7 @@ interface AuthState {
   signUp: (nombre: string, email: string, password: string, role: Role) => Promise<{ needsEmail: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateNombre: (nombre: string) => Promise<void>;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -70,8 +72,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
+  // Renombrar al usuario actual: persiste y refresca el profile en memoria para
+  // que la barra superior se actualice sin recargar.
+  const updateNombre: AuthState["updateNombre"] = async (nombre) => {
+    await actualizarMiNombre(nombre);
+    setProfile((p) => (p ? { ...p, nombre } : p));
+  };
+
   return (
-    <Ctx.Provider value={{ session, profile, loading, signUp, signIn, signOut }}>{children}</Ctx.Provider>
+    <Ctx.Provider value={{ session, profile, loading, signUp, signIn, signOut, updateNombre }}>
+      {children}
+    </Ctx.Provider>
   );
 }
 

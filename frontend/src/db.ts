@@ -172,6 +172,12 @@ export async function actualizarEmpresa(
   if (error) throw error;
 }
 
+// Nombre visible del usuario actual (política profiles_self_update en RLS).
+export async function actualizarMiNombre(nombre: string): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ nombre }).eq("id", await uid());
+  if (error) throw error;
+}
+
 // ---- Centros de costo (camiones) ----
 export async function listCentros(clienteId: string): Promise<Centro[]> {
   const { data, error } = await supabase
