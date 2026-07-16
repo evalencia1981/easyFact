@@ -16,3 +16,6 @@ frontend/dist/
 *.log
 *.tmp
 .claude/
+
+.vercel
+.env*
